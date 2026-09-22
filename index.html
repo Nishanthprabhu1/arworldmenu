@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Interactive Dining Experience</title>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-pink: #ff0055;
+            --neon-purple: #bc13fe;
+            --glass-bg: rgba(15, 15, 20, 0.78);
+            --glass-border: rgba(255, 255, 255, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #08080c;
+            color: #ffffff;
+            font-family: 'Rajdhani', sans-serif;
+        }
+
+        /* Fullscreen Model Viewer */
+        #ar-stage {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            background: radial-gradient(circle at center, #1b1c2b 0%, #08080c 100%);
+        }
+
+        /* HUD Overlay Container */
+        .hud-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        /* Top Bar */
+        .header-bar {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 12;
+            pointer-events: auto;
+        }
+
+        .brand-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+            color: #fff;
+            text-shadow: 0 0 10px var(--neon-blue);
+        }
+
+        /* Left Side: Dish Column */
+        .dish-sidebar {
+            width: 88px;
+            height: calc(100% - 90px);
+            margin-top: 70px;
+            margin-left: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+            scrollbar-width: none;
+            padding-bottom: 20px;
+        }
+
+        .dish-sidebar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .dish-thumb-card {
+            width: 76px;
+            height: 76px;
+            border-radius: 16px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            position: relative;
+            padding: 4px;
+        }
+
+        .dish-thumb-card img {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .dish-thumb-card .thumb-name {
+            font-size: 0.65rem;
+            color: #ddd;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 90%;
+            margin-top: 3px;
+            font-weight: 700;
+        }
+
+        .dish-thumb-card.active {
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 16px rgba(0, 243, 255, 0.4);
+            transform: scale(1.06);
+            background: rgba(0, 243, 255, 0.15);
+        }
+
+        /* Right Side: Quick Add & Dish Info */
+        .dish-detail-card {
+            position: absolute;
+            top: 70px;
+            right: 15px;
+            width: 170px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .dish-detail-card h3 {
+            margin: 0;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.95rem;
+            color: #fff;
+        }
+
+        .dish-detail-card .price {
+            font-size: 1.1rem;
+            color: var(--neon-blue);
+            font-weight: 800;
+        }
+
+        .btn-add {
+            background: linear-gradient(135deg, var(--neon-blue), #0077ff);
+            border: none;
+            color: #000;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 800;
+            font-size: 0.9rem;
+            padding: 9px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: opacity 0.2s;
+        }
+
+        .btn-add:active {
+            transform: scale(0.97);
+        }
+
+        /* Bottom Controls */
+        .bottom-actions {
+            position: absolute;
+            bottom: 20px;
+            right: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 12px;
+            z-index: 12;
+            pointer-events: auto;
+        }
+
+        .btn-kitchen {
+            background: linear-gradient(135deg, var(--neon-pink), var(--neon-purple));
+            color: #fff;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 30px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: 0 0 18px rgba(255, 0, 85, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .cart-badge {
+            background: #fff;
+            color: #000;
+            border-radius: 12px;
+            padding: 2px 7px;
+            font-size: 0.75rem;
+            font-weight: 900;
+        }
+
+        /* Native AR Trigger styling inside model-viewer */
+        #ar-prompt {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.75);
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue);
+            border-radius: 20px;
+            padding: 8px 18px;
+            font-weight: bold;
+            font-size: 0.85rem;
+            z-index: 11;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        /* Confirmation Modal */
+        .order-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 99;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .order-modal.active {
+            display: flex;
+        }
+
+        .modal-body {
+            background: #14141e;
+            border: 1px solid var(--neon-blue);
+            border-radius: 16px;
+            padding: 24px;
+            width: 100%;
+            max-width: 380px;
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.25);
+        }
+
+        .order-list {
+            max-height: 180px;
+            overflow-y: auto;
+            margin: 15px 0;
+            border-top: 1px solid #333;
+            border-bottom: 1px solid #333;
+            padding: 10px 0;
+        }
+
+        .order-item-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 3D/AR Scene Display -->
+    <model-viewer 
+        id="ar-stage"
+        src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
+        ios-src="https://modelviewer.dev/shared-assets/models/Astronaut.usdz"
+        alt="Selected Dish"
+        ar
+        ar-modes="webxr scene-viewer quick-look"
+        camera-controls
+        auto-rotate
+        shadow-intensity="1.5"
+        environment-image="neutral"
+        exposure="1.0">
+        
+        <button slot="ar-button" id="ar-prompt">
+            <span>⚲</span> Project on Table
+        </button>
+    </model-viewer>
+
+    <!-- Overlay UI -->
+    <div class="hud-layer">
+        
+        <div class="header-bar">
+            <div class="brand-title">AURA // MENU</div>
+            <div id="status-indicator" style="font-size: 0.8rem; color: #aaa;">Table #04</div>
+        </div>
+
+        <!-- Left Dish List -->
+        <div class="dish-sidebar interactive" id="dish-column">
+            <!-- Dynamically populated -->
+        </div>
+
+        <!-- Selected Dish Detail Box -->
+        <div class="dish-detail-card interactive">
+            <h3 id="current-title">Dish Name</h3>
+            <div class="price" id="current-price">$0.00</div>
+            <button class="btn-add" onclick="addToCart()">
+                <span>+</span> Add Item
+            </button>
+        </div>
+
+        <!-- Bottom Kitchen Order Action -->
+        <div class="bottom-actions">
+            <button class="btn-kitchen" onclick="openReviewModal()">
+                <span>Send To Kitchen</span>
+                <span class="cart-badge" id="cart-count">0</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Kitchen Review Modal -->
+    <div class="order-modal" id="order-modal">
+        <div class="modal-body">
+            <h2 style="margin-top:0; font-family:'Orbitron', sans-serif; font-size:1.2rem; color:var(--neon-blue);">Confirm Order</h2>
+            <div class="order-list" id="order-items-list">
+                <!-- Cart rows inserted here -->
+            </div>
+            <div style="display:flex; justify-content:space-between; font-weight:700; font-size:1.1rem; margin-bottom:18px;">
+                <span>Total:</span>
+                <span id="order-total-price" style="color:var(--neon-pink);">$0.00</span>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button onclick="closeReviewModal()" style="flex:1; padding:10px; background:#2a2a38; border:none; color:#fff; border-radius:8px; cursor:pointer;">Cancel</button>
+                <button onclick="submitToKitchen()" style="flex:1.4; padding:10px; background:var(--neon-blue); border:none; color:#000; font-weight:700; border-radius:8px; cursor:pointer;">Fire to Kitchen</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const catalog = [
+            { 
+                id: 1, 
+                name: "Neon Burger", 
+                price: 15.00, 
+                thumb: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=120&auto=format&fit=crop&q=60", 
+                model: "https://modelviewer.dev/shared-assets/models/Astronaut.glb", 
+                ios: "https://modelviewer.dev/shared-assets/models/Astronaut.usdz" 
+            },
+            { 
+                id: 2, 
+                name: "Cyber Pizza", 
+                price: 18.00, 
+                thumb: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=120&auto=format&fit=crop&q=60", 
+                model: "https://modelviewer.dev/shared-assets/models/NeilArmstrong.glb", 
+                ios: "https://modelviewer.dev/shared-assets/models/NeilArmstrong.usdz" 
+            },
+            { 
+                id: 3, 
+                name: "Quantum Roll", 
+                price: 22.00, 
+                thumb: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=120&auto=format&fit=crop&q=60", 
+                model: "https://modelviewer.dev/shared-assets/models/Astronaut.glb", 
+                ios: "https://modelviewer.dev/shared-assets/models/Astronaut.usdz" 
+            },
+            { 
+                id: 4, 
+                name: "Data Ramen", 
+                price: 13.50, 
+                thumb: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=120&auto=format&fit=crop&q=60", 
+                model: "https://modelviewer.dev/shared-assets/models/NeilArmstrong.glb", 
+                ios: "https://modelviewer.dev/shared-assets/models/NeilArmstrong.usdz" 
+            }
+        ];
+
+        let selectedDish = catalog[0];
+        let cart = [];
+
+        const dishColumn = document.getElementById('dish-column');
+        const stage = document.getElementById('ar-stage');
+        const titleElem = document.getElementById('current-title');
+        const priceElem = document.getElementById('current-price');
+        const cartCount = document.getElementById('cart-count');
+
+        // Populate Left-Side Dish Thumbnails
+        function renderSidebar() {
+            dishColumn.innerHTML = '';
+            catalog.forEach((item, index) => {
+                const thumb = document.createElement('div');
+                thumb.className = `dish-thumb-card ${index === 0 ? 'active' : ''}`;
+                thumb.id = `thumb-${item.id}`;
+                thumb.onclick = () => selectDish(item);
+                
+                thumb.innerHTML = `
+                    <img src="${item.thumb}" alt="${item.name}">
+                    <span class="thumb-name">${item.name}</span>
+                `;
+                dishColumn.appendChild(thumb);
+            });
+            updateDetailView(catalog[0]);
+        }
+
+        // Switch Active 3D Dish
+        function selectDish(dish) {
+            selectedDish = dish;
+            document.querySelectorAll('.dish-thumb-card').forEach(c => c.classList.remove('active'));
+            document.getElementById(`thumb-${dish.id}`).classList.add('active');
+
+            // Swap 3D assets smoothly
+            stage.src = dish.model;
+            stage.iosSrc = dish.ios;
+            updateDetailView(dish);
+        }
+
+        function updateDetailView(dish) {
+            titleElem.textContent = dish.name;
+            priceElem.textContent = `$${dish.price.toFixed(2)}`;
+        }
+
+        function addToCart() {
+            cart.push(selectedDish);
+            cartCount.textContent = cart.length;
+
+            // Visual feedback
+            priceElem.style.transform = 'scale(1.2)';
+            setTimeout(() => priceElem.style.transform = 'scale(1)', 150);
+        }
+
+        function openReviewModal() {
+            if (cart.length === 0) {
+                alert("Please add at least one dish to your order.");
+                return;
+            }
+
+            const listElem = document.getElementById('order-items-list');
+            listElem.innerHTML = '';
+            let total = 0;
+
+            cart.forEach((dish, idx) => {
+                total += dish.price;
+                const row = document.createElement('div');
+                row.className = 'order-item-row';
+                row.innerHTML = `
+                    <span>${dish.name}</span>
+                    <span>$${dish.price.toFixed(2)}</span>
+                `;
+                listElem.appendChild(row);
+            });
+
+            document.getElementById('order-total-price').textContent = `$${total.toFixed(2)}`;
+            document.getElementById('order-modal').classList.add('active');
+        }
+
+        function closeReviewModal() {
+            document.getElementById('order-modal').classList.remove('active');
+        }
+
+        function submitToKitchen() {
+            // Integration hook for WebSocket / POS API / Firebase
+            console.log("Order submitted to kitchen:", cart);
+            alert("Order routed to table #04!");
+            cart = [];
+            cartCount.textContent = 0;
+            closeReviewModal();
+        }
+
+        window.addEventListener('DOMContentLoaded', renderSidebar);
+    </script>
+</body>
+</html>
