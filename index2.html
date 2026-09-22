@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>LiveDish AI - Augmented Dining Experience</title>
+  
+  <!-- Model-Viewer for WebXR/AR Placement -->
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
+  
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --gold: #d4af37;
+      --gold-light: #f3e5ab;
+      --bg-dark: #09090d;
+      --card-bg: rgba(22, 22, 30, 0.88);
+      --glass-border: rgba(212, 175, 55, 0.25);
+      --neon-red: #ff2a5f;
+      --safe-area-bottom: env(safe-area-inset-bottom, 20px);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-dark);
+      font-family: 'Rajdhani', sans-serif;
+      color: #fff;
+    }
+
+    /* Screen Views Management */
+    .screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: none;
+      flex-direction: column;
+      z-index: 10;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    /* --- STEP 2: WELCOME PORTAL --- */
+    #view-welcome {
+      background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.85)), 
+                  url('https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=1200&q=80') center/cover;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 40px 24px calc(40px + var(--safe-area-bottom)) 24px;
+      text-align: center;
+    }
+
+    .japanese-sub {
+      font-size: 1.2rem;
+      letter-spacing: 4px;
+      color: var(--gold-light);
+      margin-bottom: 8px;
+    }
+
+    .hero-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2.2rem;
+      line-height: 1.1;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #fff;
+      text-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+    }
+
+    .btn-gold {
+      background: linear-gradient(135deg, #f7d070 0%, #b8860b 100%);
+      color: #111;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 800;
+      font-size: 1rem;
+      letter-spacing: 1px;
+      border: none;
+      padding: 16px 36px;
+      border-radius: 40px;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(212, 175, 55, 0.4);
+      margin-top: 24px;
+      transition: transform 0.15s ease;
+      width: 80%;
+      max-width: 320px;
+    }
+
+    .btn-gold:active {
+      transform: scale(0.96);
+    }
+
+    /* --- MAIN AR/3D APP SHELL (STEPS 3 - 6) --- */
+    #view-main {
+      position: relative;
+    }
+
+    model-viewer#main-stage {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      background: radial-gradient(circle at center, #1a1a24 0%, #08080c 100%);
+    }
+
+    /* Glass UI Overlay */
+    .hud-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 5;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 20px 16px var(--safe-area-bottom) 16px;
+    }
+
+    .pointer-auto {
+      pointer-events: auto;
+    }
+
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand-mark {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-mark span {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 800;
+      font-size: 1rem;
+      letter-spacing: 1px;
+      color: var(--gold);
+    }
+
+    .round-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: var(--card-bg);
+      border: 1px solid var(--glass-border);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+    }
+
+    /* Category Slider (Step 3) */
+    .category-pills {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding: 10px 0;
+    }
+    .category-pills::-webkit-scrollbar { display: none; }
+
+    .pill {
+      background: var(--card-bg);
+      border: 1px solid var(--glass-border);
+      color: #aaa;
+      padding: 7px 16px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+    }
+
+    .pill.active {
+      background: var(--gold);
+      color: #000;
+      border-color: var(--gold);
+      box-shadow: 0 0 12px rgba(212, 175, 55, 0.4);
+    }
+
+    /* Left Side Dish Strip */
+    .dish-strip {
+      position: absolute;
+      top: 130px;
+      left: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: calc(100vh - 350px);
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+    .dish-strip::-webkit-scrollbar { display: none; }
+
+    .dish-thumbnail {
+      width: 60px;
+      height: 60px;
+      border-radius: 14px;
+      background: var(--card-bg);
+      border: 1px solid var(--glass-border);
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .dish-thumbnail img {
+      width: 100%;
+      height: 100%;
+      border-radius: 10px;
+      object-fit: cover;
+    }
+
+    .dish-thumbnail.active {
+      border-color: var(--gold);
+      box-shadow: 0 0 14px rgba(212, 175, 55, 0.5);
+      transform: scale(1.08);
+    }
+
+    /* Bottom Dish Info Card (Steps 4 - 6) */
+    .dish-summary-card {
+      background: var(--card-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 16px 20px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    }
+
+    .dish-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .dish-name {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .dish-price {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--gold);
+    }
+
+    .dish-desc {
+      font-size: 0.85rem;
+      color: #bbb;
+      margin-bottom: 12px;
+      line-height: 1.3;
+    }
+
+    .badges-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 14px;
+      font-size: 0.75rem;
+      color: #999;
+    }
+
+    .badge-icon {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .actions-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.3fr;
+      gap: 10px;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.9rem;
+      padding: 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    /* Modal Sheets (Steps 8 & 9) */
+    .sheet-modal {
+      position: fixed;
+      bottom: -100%;
+      left: 0;
+      width: 100%;
+      max-height: 85vh;
+      background: #111118;
+      border-top: 1px solid var(--glass-border);
+      border-radius: 28px 28px 0 0;
+      z-index: 50;
+      padding: 24px 20px calc(20px + var(--safe-area-bottom)) 20px;
+      box-shadow: 0 -10px 40px rgba(0,0,0,0.8);
+      transition: bottom 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+    }
+
+    .sheet-modal.open {
+      bottom: 0;
+    }
+
+    .sheet-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #222;
+      padding-bottom: 12px;
+    }
+
+    /* Customizer Styles (Step 9) */
+    .option-group-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--gold-light);
+      margin-bottom: 8px;
+    }
+
+    .spice-selector {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .spice-node {
+      background: #181822;
+      border: 1px solid #333;
+      padding: 8px;
+      border-radius: 10px;
+      text-align: center;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+
+    .spice-node.selected {
+      border-color: var(--neon-red);
+      color: var(--neon-red);
+      background: rgba(255, 42, 95, 0.1);
+    }
+
+    .addons-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .addon-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #181822;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid #2a2a38;
+      cursor: pointer;
+    }
+
+    .addon-item.selected {
+      border-color: var(--gold);
+    }
+
+    /* Cart & Kitchen Tracker (Steps 10 - 12) */
+    .cart-summary {
+      background: #181822;
+      border-radius: 16px;
+      padding: 14px;
+      max-height: 180px;
+      overflow-y: auto;
+      border: 1px solid #2a2a38;
+    }
+
+    .cart-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #222;
+      font-size: 0.9rem;
+    }
+
+    /* Step 11: Reward Banner */
+    .reward-box {
+      background: linear-gradient(135deg, rgba(212,175,55,0.15), rgba(255,42,95,0.15));
+      border: 1px dashed var(--gold);
+      border-radius: 14px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 6px;
+    }
+
+    /* Step 12: Order Tracker */
+    .status-tracker {
+      display: flex;
+      justify-content: space-between;
+      position: relative;
+      margin: 20px 0;
+    }
+
+    .status-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: #666;
+      z-index: 2;
+    }
+
+    .status-step.active {
+      color: var(--gold);
+    }
+
+    .status-bullet {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #222;
+      border: 2px solid #444;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+    }
+
+    .status-step.active .status-bullet {
+      background: var(--gold);
+      color: #000;
+      border-color: var(--gold);
+      box-shadow: 0 0 10px var(--gold);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- STEP 2: WELCOME PORTAL -->
+  <section id="view-welcome" class="screen active">
+    <div class="japanese-sub">ようこそ</div>
+    <h1 class="hero-title">Welcome to<br>Our AR World</h1>
+    <p style="color:#bbb; font-size:0.95rem; max-width: 280px;">Real food. Immersive spatial dimensions. Direct tabletop projection.</p>
+    <button class="btn-gold" onclick="transitionToMenu()">ENTER WORLD</button>
+  </section>
+
+  <!-- STEPS 3 TO 7: MAIN 3D/AR STAGE & HUD -->
+  <section id="view-main" class="screen">
+    
+    <!-- 3D Engine & WebXR Surface Tracker -->
+    <model-viewer 
+      id="main-stage"
+      src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
+      ios-src="https://modelviewer.dev/shared-assets/models/Astronaut.usdz"
+      alt="Interactive AR Menu Item"
+      ar
+      ar-modes="webxr scene-viewer quick-look"
+      camera-controls
+      auto-rotate
+      rotation-per-second="20deg"
+      shadow-intensity="1.6"
+      exposure="1.05"
+      ar-scale="auto">
+    </model-viewer>
+
+    <!-- Overlay UI (HUD) -->
+    <div class="hud-layer">
+      
+      <!-- Top Navigation -->
+      <div class="header-bar pointer-auto">
+        <div class="brand-mark">
+          <div class="round-btn" style="border-color:var(--gold); color:var(--gold);">食</div>
+          <span>LIVEDISH AI</span>
+        </div>
+        
+        <div style="display:flex; gap:8px;">
+          <button class="round-btn" onclick="openChefStory()">👨‍🍳</button>
+          <button class="round-btn" onclick="openCartView()">
+            🛒 <span id="cart-tally" style="font-size:0.75rem; position:absolute; top:2px; right:2px; background:var(--neon-red); border-radius:10px; padding:2px 5px;">0</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 3: Categories -->
+      <div class="category-pills pointer-auto" id="category-bar">
+        <div class="pill active" onclick="filterCategory('ramen')">Signature Ramen</div>
+        <div class="pill" onclick="filterCategory('sushi')">Sushi World</div>
+        <div class="pill" onclick="filterCategory('starters')">Starters</div>
+        <div class="pill" onclick="filterCategory('drinks')">Drinks</div>
+      </div>
+
+      <!-- Step 4: Vertical Dish Strip -->
+      <div class="dish-strip pointer-auto" id="dish-strip-container">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Step 5 & 6: Interactive Bottom Card -->
+      <div class="dish-summary-card pointer-auto">
+        <div class="dish-title-row">
+          <h2 class="dish-name" id="stage-dish-name">Signature Ramen</h2>
+          <span class="dish-price" id="stage-dish-price">₹399</span>
+        </div>
+        <p class="dish-desc" id="stage-dish-desc">12-hour simmered chicken broth, fresh noodles, soft ajitsuke egg, nori & chashu.</p>
+        
+        <div class="badges-row">
+          <span class="badge-icon">🌿 Organic</span>
+          <span class="badge-icon">🌶️ Customizable</span>
+          <span class="badge-icon">⏳ 15 mins</span>
+        </div>
+
+        <div class="actions-grid">
+          <!-- Step 9 Entry -->
+          <button class="btn-secondary" onclick="openCustomizer()">
+            <span>⚙️</span> Customize
+          </button>
+          
+          <!-- Step 6: Native AR Launch -->
+          <button class="btn-gold" style="width:100%; margin:0; padding:12px; font-size:0.85rem;" onclick="triggerARPlacement()">
+            <span>👁️</span> VIEW IN AR
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- STEP 8: MEET THE CHEF MODAL -->
+  <div class="sheet-modal" id="modal-chef">
+    <div class="sheet-header">
+      <h3 style="font-family:'Orbitron'; color:var(--gold);">Meet Master Chef Takeda</h3>
+      <button class="round-btn" onclick="closeSheet('modal-chef')">✕</button>
+    </div>
+    <div style="display:flex; gap:14px; align-items:center;">
+      <img src="https://images.unsplash.com/photo-1577219491135-ce391730fb2c?auto=format&fit=crop&w=300&q=80" style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:2px solid var(--gold);" />
+      <div>
+        <h4>Executive Chef Kenji Takeda</h4>
+        <p style="font-size:0.8rem; color:#aaa;">Tokyo Institute of Culinary Arts</p>
+      </div>
+    </div>
+    <p style="font-size:0.9rem; line-height:1.4; color:#ccc;">
+      "Our broths are gently extracted over twelve hours using traditional binary heat control, balancing rich umami profiles with hand-pulled artisanal wheat noodles."
+    </p>
+    <button class="btn-gold" style="width:100%;" onclick="speakChefAudio()">🔊 Listen to Chef's Story</button>
+  </div>
+
+  <!-- STEP 9: CUSTOMIZE YOUR DISH MODAL -->
+  <div class="sheet-modal" id="modal-customizer">
+    <div class="sheet-header">
+      <h3 style="font-family:'Orbitron';">Customize Plate</h3>
+      <button class="round-btn" onclick="closeSheet('modal-customizer')">✕</button>
+    </div>
+    
+    <div class="option-group-title">Spice Heat Level</div>
+    <div class="spice-selector">
+      <div class="spice-node" onclick="setSpice(this, 'Zero')">None</div>
+      <div class="spice-node selected" onclick="setSpice(this, 'Mild')">Mild</div>
+      <div class="spice-node" onclick="setSpice(this, 'Medium')">Medium</div>
+      <div class="spice-node" onclick="setSpice(this, 'Spicy Hot')">Spicy</div>
+    </div>
+
+    <div class="option-group-title" style="margin-top:10px;">Select Extras</div>
+    <div class="addons-list">
+      <div class="addon-item" onclick="toggleAddon(this, 40, 'Ajitsuke Tamago')">
+        <span>Extra Marinated Egg</span>
+        <span style="color:var(--gold);">+₹40</span>
+      </div>
+      <div class="addon-item" onclick="toggleAddon(this, 80, 'Chashu Slices')">
+        <span>Extra Pork Chashu (2pcs)</span>
+        <span style="color:var(--gold);">+₹80</span>
+      </div>
+      <div class="addon-item" onclick="toggleAddon(this, 30, 'Roasted Nori')">
+        <span>Crispy Nori Sheets</span>
+        <span style="color:var(--gold);">+₹30</span>
+      </div>
+    </div>
+
+    <button class="btn-gold" style="width:100%; margin-top:10px;" onclick="addConfiguredDishToCart()">
+      CONFIRM & ADD (+<span id="custom-total-preview">₹0</span>)
+    </button>
+  </div>
+
+  <!-- STEPS 10 & 11: YOUR AR CART & REWARD -->
+  <div class="sheet-modal" id="modal-cart">
+    <div class="sheet-header">
+      <h3 style="font-family:'Orbitron';">Your Order</h3>
+      <button class="round-btn" onclick="closeSheet('modal-cart')">✕</button>
+    </div>
+
+    <div class="cart-summary" id="cart-rows-mount">
+      <!-- Cart items injected here -->
+    </div>
+
+    <!-- Step 11: Fun Zone Reward -->
+    <div class="reward-box">
+      <span style="font-size:1.8rem;">🐱</span>
+      <div>
+        <div style="font-weight:700; color:var(--gold-light);">AR Lucky Cat Unlocked!</div>
+        <div style="font-size:0.75rem; color:#aaa;">Special discount applied on your table order.</div>
+      </div>
+      <span style="margin-left:auto; font-weight:800; color:var(--neon-red); font-size:0.85rem;">-10%</span>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; font-size:1.2rem; font-weight:800;">
+      <span>Total Amount:</span>
+      <span style="color:var(--gold);" id="cart-grand-total">₹0</span>
+    </div>
+
+    <!-- Step 12 Dispatch -->
+    <button class="btn-gold" style="width:100%;" onclick="sendOrderToKitchen()">
+      SEND TO KITCHEN ➔
+    </button>
+  </div>
+
+  <!-- STEP 12: CONFIRMED ORDER & LIVE KITCHEN TRACKER -->
+  <div class="sheet-modal" id="modal-confirmed">
+    <div style="text-align:center; padding:10px 0;">
+      <div style="font-size:3rem;">🥢</div>
+      <h2 style="font-family:'Orbitron'; color:var(--gold); margin-top:8px;">Order Dispatched!</h2>
+      <p style="color:#aaa; font-size:0.85rem;">Ticket #084 routed to Station 2 (Prep Line)</p>
+    </div>
+
+    <div class="status-tracker">
+      <div class="status-step active">
+        <div class="status-bullet">✓</div>
+        <span>Received</span>
+      </div>
+      <div class="status-step active">
+        <div class="status-bullet">2</div>
+        <span>Prep Fire</span>
+      </div>
+      <div class="status-step">
+        <div class="status-bullet">3</div>
+        <span>Quality</span>
+      </div>
+      <div class="status-step">
+        <div class="status-bullet">4</div>
+        <span>At Table</span>
+      </div>
+    </div>
+
+    <button class="btn-secondary" style="width:100%;" onclick="closeSheet('modal-confirmed')">
+      Return to AR World
+    </button>
+  </div>
+
+  <!-- APPLICATION CONTROLLER LOGIC -->
+  <script>
+    // --- Data Model Catalog ---
+    const menuCatalog = [
+      {
+        id: 'ramen-1',
+        category: 'ramen',
+        name: 'Signature Ramen',
+        price: 399,
+        desc: '12-hour simmered broth with wheat noodles, ajitsuke tamago, nori, and chashu.',
+        thumb: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=150&q=80',
+        model: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb',
+        ios: 'https://modelviewer.dev/shared-assets/models/Astronaut.usdz'
+      },
+      {
+        id: 'sushi-1',
+        category: 'sushi',
+        name: 'Salmon Nigiri Set',
+        price: 499,
+        desc: 'Fresh Atlantic salmon slices pressed over seasoned sushi rice with nikiri glaze.',
+        thumb: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?auto=format&fit=crop&w=150&q=80',
+        model: 'https://modelviewer.dev/shared-assets/models/NeilArmstrong.glb',
+        ios: 'https://modelviewer.dev/shared-assets/models/NeilArmstrong.usdz'
+      },
+      {
+        id: 'starter-1',
+        category: 'starters',
+        name: 'Crispy Gyoza',
+        price: 299,
+        desc: 'Pan-seared pork dumplings served with chili scallion dipping oil.',
+        thumb: 'https://images.unsplash.com/photo-1496116218417-1a781b1c416c?auto=format&fit=crop&w=150&q=80',
+        model: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb',
+        ios: 'https://modelviewer.dev/shared-assets/models/Astronaut.usdz'
+      },
+      {
+        id: 'drink-1',
+        category: 'drinks',
+        name: 'Ceremonial Matcha',
+        price: 120,
+        desc: 'Stone-ground Uji matcha whisked with filtered spring water.',
+        thumb: 'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=150&q=80',
+        model: 'https://modelviewer.dev/shared-assets/models/NeilArmstrong.glb',
+        ios: 'https://modelviewer.dev/shared-assets/models/NeilArmstrong.usdz'
+      }
+    ];
+
+    // App State
+    let activeDish = menuCatalog[0];
+    let cart = [];
+    let customExtras = [];
+    let activeSpice = 'Mild';
+
+    // Step 2 -> 3 Transition
+    function transitionToMenu() {
+      document.getElementById('view-welcome').classList.remove('active');
+      document.getElementById('view-main').classList.add('active');
+      renderDishStrip(menuCatalog);
+      inspectDish(menuCatalog[0].id);
+    }
+
+    // Render Lateral Dish Selection (Step 4)
+    function renderDishStrip(items) {
+      const container = document.getElementById('dish-strip-container');
+      container.innerHTML = '';
+      items.forEach((dish, idx) => {
+        const itemEl = document.createElement('div');
+        itemEl.className = `dish-thumbnail ${idx === 0 ? 'active' : ''}`;
+        itemEl.id = `thumb-${dish.id}`;
+        itemEl.onclick = () => inspectDish(dish.id);
+        itemEl.innerHTML = `<img src="${dish.thumb}" alt="${dish.name}" />`;
+        container.appendChild(itemEl);
+      });
+    }
+
+    // Step 5: Update 3D Stage & Meta View
+    function inspectDish(id) {
+      activeDish = menuCatalog.find(d => d.id === id);
+      
+      // Update UI texts
+      document.getElementById('stage-dish-name').textContent = activeDish.name;
+      document.getElementById('stage-dish-price').textContent = `₹${activeDish.price}`;
+      document.getElementById('stage-dish-desc').textContent = activeDish.desc;
+
+      // Update Thumbnails visual state
+      document.querySelectorAll('.dish-thumbnail').forEach(el => el.classList.remove('active'));
+      const activeEl = document.getElementById(`thumb-${id}`);
+      if (activeEl) activeEl.classList.add('active');
+
+      // Asset swap
+      const viewer = document.getElementById('main-stage');
+      viewer.src = activeDish.model;
+      viewer.iosSrc = activeDish.ios;
+    }
+
+    // Filter Categories
+    function filterCategory(cat) {
+      document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+      event.target.classList.add('active');
+      const filtered = menuCatalog.filter(d => d.category === cat);
+      renderDishStrip(filtered.length ? filtered : menuCatalog);
+      if (filtered.length) inspectDish(filtered[0].id);
+    }
+
+    // Step 6: Direct WebXR / QuickLook Placement
+    function triggerARPlacement() {
+      const viewer = document.getElementById('main-stage');
+      if (viewer.canActivateAR) {
+        viewer.activateAR();
+      } else {
+        alert("WebXR plane detection is not supported on this browser engine. Viewing in interactive 3D inspection mode.");
+      }
+    }
+
+    // Step 8: Meet the Chef Story
+    function openChefStory() {
+      document.getElementById('modal-chef').classList.add('open');
+    }
+
+    function speakChefAudio() {
+      if ('speechSynthesis' in window) {
+        const text = "Welcome to our kitchen. We take immense pride in traditional culinary timing, balancing umami with hand-pulled craft noodles. Enjoy your dining journey.";
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 0.9;
+        utterance.pitch = 0.95;
+        window.speechSynthesis.speak(utterance);
+      } else {
+        alert("Audio narration not supported in your browser.");
+      }
+    }
+
+    // Step 9: Customization Engine
+    function openCustomizer() {
+      customExtras = [];
+      document.querySelectorAll('.addon-item').forEach(el => el.classList.remove('selected'));
+      updateCustomizerTotal();
+      document.getElementById('modal-customizer').classList.add('open');
+    }
+
+    function setSpice(el, level) {
+      document.querySelectorAll('.spice-node').forEach(node => node.classList.remove('selected'));
+      el.classList.add('selected');
+      activeSpice = level;
+    }
+
+    function toggleAddon(el, price, title) {
+      el.classList.toggle('selected');
+      const exists = customExtras.find(e => e.title === title);
+      if (exists) {
+        customExtras = customExtras.filter(e => e.title !== title);
+      } else {
+        customExtras.push({ title, price });
+      }
+      updateCustomizerTotal();
+    }
+
+    function updateCustomizerTotal() {
+      const addOnSum = customExtras.reduce((acc, curr) => acc + curr.price, 0);
+      document.getElementById('custom-total-preview').textContent = `₹${activeDish.price + addOnSum}`;
+    }
+
+    function addConfiguredDishToCart() {
+      const addOnSum = customExtras.reduce((acc, curr) => acc + curr.price, 0);
+      const configuredItem = {
+        name: `${activeDish.name} (${activeSpice})`,
+        price: activeDish.price + addOnSum,
+        extras: customExtras.map(e => e.title).join(', ')
+      };
+      
+      cart.push(configuredItem);
+      updateCartUI();
+      closeSheet('modal-customizer');
+    }
+
+    // Step 10 & 11: Cart & Rewards
+    function openCartView() {
+      const mount = document.getElementById('cart-rows-mount');
+      mount.innerHTML = '';
+
+      if (cart.length === 0) {
+        mount.innerHTML = `<div style="text-align:center; color:#666; padding:20px;">Your AR Table is empty.</div>`;
+      } else {
+        cart.forEach((item, index) => {
+          const row = document.createElement('div');
+          row.className = 'cart-row';
+          row.innerHTML = `
+            <div>
+              <div>${item.name}</div>
+              <small style="color:#777;">${item.extras || 'Standard Serving'}</small>
+            </div>
+            <div style="font-weight:700; color:var(--gold);">₹${item.price}</div>
+          `;
+          mount.appendChild(row);
+        });
+      }
+
+      // Calculate Total with 10% Gamified Reward
+      const subtotal = cart.reduce((acc, curr) => acc + curr.price, 0);
+      const discount = subtotal > 0 ? subtotal * 0.10 : 0;
+      const grandTotal = Math.round(subtotal - discount);
+
+      document.getElementById('cart-grand-total').textContent = `₹${grandTotal}`;
+      document.getElementById('modal-cart').classList.add('open');
+    }
+
+    function updateCartUI() {
+      document.getElementById('cart-tally').textContent = cart.length;
+    }
+
+    // Step 12: Order Kitchen Routing
+    function sendOrderToKitchen() {
+      if (cart.length === 0) {
+        alert("Add dishes to your table first!");
+        return;
+      }
+      
+      closeSheet('modal-cart');
+      document.getElementById('modal-confirmed').classList.add('open');
+      
+      // Clear Cart state
+      cart = [];
+      updateCartUI();
+    }
+
+    function closeSheet(id) {
+      document.getElementById(id).classList.remove('open');
+    }
+  </script>
+</body>
+</html>
