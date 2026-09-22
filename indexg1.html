@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AR Dining Experience</title>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-pink: #ff0055;
+            --glass-bg: rgba(12, 12, 18, 0.72);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --safe-top: env(safe-area-inset-top, 16px);
+            --safe-bottom: env(safe-area-inset-bottom, 16px);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #050508;
+            color: #ffffff;
+            font-family: 'Rajdhani', sans-serif;
+        }
+
+        /* 1. MAXIMIZED FULLSCREEN 3D CANVAS */
+        #ar-stage {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            background: radial-gradient(circle at center, #1a1b26 0%, #06060a 100%);
+        }
+
+        /* Transparent UI Container */
+        .hud-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: calc(var(--safe-top) + 6px) 14px calc(var(--safe-bottom) + 8px) 14px;
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        /* 2. DISH SELECTOR ON TOP */
+        .top-dish-carousel {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            padding: 4px 2px;
+            width: 100%;
+        }
+
+        .top-dish-carousel::-webkit-scrollbar {
+            display: none;
+        }
+
+        .dish-pill-card {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px 6px 6px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 30px;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .dish-pill-card img {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .dish-pill-card .pill-name {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #ddd;
+            white-space: nowrap;
+        }
+
+        .dish-pill-card.active {
+            border-color: var(--neon-blue);
+            background: rgba(0, 243, 255, 0.16);
+            box-shadow: 0 0 14px rgba(0, 243, 255, 0.35);
+            transform: scale(1.03);
+        }
+
+        .dish-pill-card.active .pill-name {
+            color: #fff;
+        }
+
+        /* 3. AR PROMPT BUTTON (STACKED TEXT + ICON) */
+        #custom-ar-btn {
+            position: absolute;
+            right: 14px;
+            bottom: 125px;
+            background: var(--glass-bg);
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue);
+            border-radius: 14px;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            cursor: pointer;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 0 16px rgba(0, 243, 255, 0.25);
+            z-index: 12;
+        }
+
+        #custom-ar-btn .ar-label {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.65rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+
+        #custom-ar-btn .ar-icon {
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+
+        /* 4. COMPACT BOTTOM PANEL */
+        .bottom-shelf {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+        }
+
+        /* Single-line dish detail bar */
+        .single-line-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 18px;
+            padding: 10px 14px;
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+        }
+
+        .dish-meta-inline {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            overflow: hidden;
+        }
+
+        .dish-meta-inline .title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 160px;
+        }
+
+        .dish-meta-inline .price {
+            color: var(--neon-blue);
+            font-size: 1.15rem;
+            font-weight: 800;
+        }
+
+        .btn-add-inline {
+            background: linear-gradient(135deg, var(--neon-blue), #0077ff);
+            border: none;
+            color: #000;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 800;
+            font-size: 0.85rem;
+            padding: 8px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .btn-add-inline:active {
+            transform: scale(0.95);
+        }
+
+        /* Kitchen Dispatch Bar */
+        .kitchen-bar {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .btn-kitchen {
+            background: linear-gradient(135deg, var(--neon-pink), #a000ff);
+            color: #fff;
+            border: none;
+            padding: 12px 22px;
+            border-radius: 25px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(255, 0, 85, 0.45);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .cart-badge {
+            background: #ffffff;
+            color: #000;
+            border-radius: 10px;
+            padding: 1px 7px;
+            font-size: 0.72rem;
+            font-weight: 900;
+        }
+
+        /* 5. KITCHEN ORDER SHEET / MODAL WITH + & - */
+        .order-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 100;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .order-modal.active {
+            display: flex;
+        }
+
+        .modal-body {
+            background: #111118;
+            border-top: 1px solid var(--neon-blue);
+            border-radius: 24px 24px 0 0;
+            padding: 22px 20px calc(var(--safe-bottom) + 16px) 20px;
+            width: 100%;
+            max-width: 520px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 -8px 30px rgba(0, 243, 255, 0.2);
+            animation: slideUp 0.25s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.15rem;
+            color: var(--neon-blue);
+        }
+
+        .close-btn {
+            background: transparent;
+            border: none;
+            color: #888;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        .order-list {
+            overflow-y: auto;
+            max-height: 280px;
+            margin-bottom: 14px;
+        }
+
+        .order-item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .item-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .item-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+
+        .item-cost {
+            font-size: 0.85rem;
+            color: #aaa;
+        }
+
+        /* Quantity +/- controls */
+        .qty-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #191924;
+            border-radius: 20px;
+            padding: 4px 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .qty-btn {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: #252636;
+            border: none;
+            color: #fff;
+            font-weight: 800;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .qty-btn:active {
+            background: var(--neon-blue);
+            color: #000;
+        }
+
+        .qty-count {
+            min-width: 18px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .order-total-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.2rem;
+            font-weight: 800;
+            margin: 12px 0 16px 0;
+        }
+
+        .order-total-row span:last-child {
+            color: var(--neon-pink);
+        }
+
+        .btn-confirm {
+            width: 100%;
+            padding: 14px;
+            background: var(--neon-blue);
+            border: none;
+            border-radius: 12px;
+            color: #000;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 800;
+            cursor: pointer;
+            letter-spacing: 1px;
+            box-shadow: 0 0 18px rgba(0, 243, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. FULLSCREEN 3D MODEL VIEWPORT -->
+    <model-viewer 
+        id="ar-stage"
+        src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
+        ios-src="https://modelviewer.dev/shared-assets/models/Astronaut.usdz"
+        alt="Selected Dish"
+        ar
+        ar-modes="webxr scene-viewer quick-look"
+        camera-controls
+        auto-rotate
+        rotation-per-second="25deg"
+        shadow-intensity="1.5"
+        environment-image="neutral"
+        exposure="1.05">
+        
+        <!-- Native AR Button Hooked to Custom Styled Trigger -->
+        <button slot="ar-button" id="custom-ar-btn" class="interactive">
+            <span class="ar-label">AR VIEW</span>
+            <span class="ar-icon">🧊</span>
+        </button>
+    </model-viewer>
+
+    <!-- 2. OVERLAY HUD -->
+    <div class="hud-layer">
+        
+        <!-- TOP: Dish Options Bar -->
+        <div class="top-dish-carousel interactive" id="dish-carousel">
+            <!-- Dynamically injected -->
+        </div>
+
+        <!-- BOTTOM: Details & Actions -->
+        <div class="bottom-shelf interactive">
+            
+            <!-- Single Line Name + Price + Add -->
+            <div class="single-line-bar">
+                <div class="dish-meta-inline">
+                    <span class="title" id="current-title">Dish Name</span>
+                    <span class="price" id="current-price">$0.00</span>
+                </div>
+                <button class="btn-add-inline" onclick="addToCart()">+ ADD</button>
+            </div>
+
+            <!-- Send to Kitchen Button -->
+            <div class="kitchen-bar">
+                <button class="btn-kitchen" onclick="openReviewModal()">
+                    <span>SEND TO KITCHEN</span>
+                    <span class="cart-badge" id="cart-count">0</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. REVIEW & QUANTITY ADJUSTMENT MODAL -->
+    <div class="order-modal" id="order-modal">
+        <div class="modal-body">
+            <div class="modal-header">
+                <h2>Review Kitchen Order</h2>
+                <button class="close-btn" onclick="closeReviewModal()">✕</button>
+            </div>
+            
+            <div class="order-list" id="order-items-list">
+                <!-- Injected dish rows with +/- controls -->
+            </div>
+
+            <div class="order-total-row">
+                <span>Total Amount:</span>
+                <span id="order-total-price">$0.00</span>
+            </div>
+
+            <button class="btn-confirm" onclick="confirmKitchenOrder()">CONFIRM ORDER</button>
+        </div>
+    </div>
+
+    <script>
+        const catalog = [
+            { 
+                id: 1, 
+                name: "Neon Burger", 
+                price: 15.00, 
+                thumb: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=120&auto=format&fit=crop&q=60", 
+                model: "https://modelviewer.dev/shared-assets/models/Astronaut.glb", 
+                ios: "https://modelviewer.dev/shared-assets/models/Astronaut.usdz" 
+            },
+            { 
+                id: 2, 
+                name: "Cyber Pizza", 
+                price: 18.00, 
+                thumb: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=120&auto=format&fit=crop&q=60", 
+                model: "https://modelviewer.dev/shared-assets/models/NeilArmstrong.glb", 
+                ios: "https://modelviewer.dev/shared-assets/models/NeilArmstrong.usdz" 
+            },
+            { 
+                id: 3, 
+                name: "Quantum Roll", 
+                price: 22.00, 
+                thumb: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=120&auto=format&fit=crop&q=60", 
+                model: "https://modelviewer.dev/shared-assets/models/Astronaut.glb", 
+                ios: "https://modelviewer.dev/shared-assets/models/Astronaut.usdz" 
+            },
+            { 
+                id: 4, 
+                name: "Data Ramen", 
+                price: 13.50, 
+                thumb: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=120&auto=format&fit=crop&q=60", 
+                model: "https://modelviewer.dev/shared-assets/models/NeilArmstrong.glb", 
+                ios: "https://modelviewer.dev/shared-assets/models/NeilArmstrong.usdz" 
+            }
+        ];
+
+        let selectedDish = catalog[0];
+        // Cart schema: { dishId: { dish: Object, qty: Number } }
+        let cart = {};
+
+        const carousel = document.getElementById('dish-carousel');
+        const stage = document.getElementById('ar-stage');
+        const titleElem = document.getElementById('current-title');
+        const priceElem = document.getElementById('current-price');
+        const cartCount = document.getElementById('cart-count');
+
+        // Render Top Dishes Carousel
+        function renderTopBar() {
+            carousel.innerHTML = '';
+            catalog.forEach((dish, idx) => {
+                const card = document.createElement('div');
+                card.className = `dish-pill-card ${idx === 0 ? 'active' : ''}`;
+                card.id = `dish-pill-${dish.id}`;
+                card.onclick = () => selectDish(dish);
+                card.innerHTML = `
+                    <img src="${dish.thumb}" alt="${dish.name}" />
+                    <span class="pill-name">${dish.name}</span>
+                `;
+                carousel.appendChild(card);
+            });
+            updateInlineInfo(catalog[0]);
+        }
+
+        // Switch Current 3D Dish
+        function selectDish(dish) {
+            selectedDish = dish;
+            document.querySelectorAll('.dish-pill-card').forEach(p => p.classList.remove('active'));
+            document.getElementById(`dish-pill-${dish.id}`).classList.add('active');
+
+            stage.src = dish.model;
+            stage.iosSrc = dish.ios;
+            updateInlineInfo(dish);
+        }
+
+        function updateInlineInfo(dish) {
+            titleElem.textContent = dish.name;
+            priceElem.textContent = `$${dish.price.toFixed(2)}`;
+        }
+
+        // Cart Management
+        function addToCart() {
+            if (!cart[selectedDish.id]) {
+                cart[selectedDish.id] = { dish: selectedDish, qty: 1 };
+            } else {
+                cart[selectedDish.id].qty += 1;
+            }
+            refreshCartTally();
+
+            // Quick scale animation feedback
+            priceElem.style.transform = 'scale(1.2)';
+            setTimeout(() => priceElem.style.transform = 'scale(1)', 120);
+        }
+
+        function updateItemQty(dishId, change) {
+            if (!cart[dishId]) return;
+            cart[dishId].qty += change;
+
+            if (cart[dishId].qty <= 0) {
+                delete cart[dishId];
+            }
+            refreshCartTally();
+            renderModalRows();
+        }
+
+        function refreshCartTally() {
+            const totalCount = Object.values(cart).reduce((sum, item) => sum + item.qty, 0);
+            cartCount.textContent = totalCount;
+        }
+
+        // Render Order Breakdown Inside Modal
+        function renderModalRows() {
+            const listContainer = document.getElementById('order-items-list');
+            listContainer.innerHTML = '';
+            const items = Object.values(cart);
+            let total = 0;
+
+            if (items.length === 0) {
+                listContainer.innerHTML = `<div style="text-align:center; padding: 20px; color:#777;">Your cart is empty.</div>`;
+                document.getElementById('order-total-price').textContent = '$0.00';
+                return;
+            }
+
+            items.forEach(({ dish, qty }) => {
+                const subtotal = dish.price * qty;
+                total += subtotal;
+
+                const row = document.createElement('div');
+                row.className = 'order-item-row';
+                row.innerHTML = `
+                    <div class="item-info">
+                        <span class="item-title">${dish.name}</span>
+                        <span class="item-cost">$${dish.price.toFixed(2)} each</span>
+                    </div>
+                    <div class="qty-control">
+                        <button class="qty-btn" onclick="updateItemQty(${dish.id}, -1)">−</button>
+                        <span class="qty-count">${qty}</span>
+                        <button class="qty-btn" onclick="updateItemQty(${dish.id}, 1)">+</button>
+                    </div>
+                `;
+                listContainer.appendChild(row);
+            });
+
+            document.getElementById('order-total-price').textContent = `$${total.toFixed(2)}`;
+        }
+
+        function openReviewModal() {
+            const totalCount = Object.values(cart).reduce((sum, item) => sum + item.qty, 0);
+            if (totalCount === 0) {
+                alert("Please add at least one dish first.");
+                return;
+            }
+            renderModalRows();
+            document.getElementById('order-modal').classList.add('active');
+        }
+
+        function closeReviewModal() {
+            document.getElementById('order-modal').classList.remove('active');
+        }
+
+        function confirmKitchenOrder() {
+            const totalCount = Object.values(cart).reduce((sum, item) => sum + item.qty, 0);
+            if (totalCount === 0) return;
+
+            // Route order payload to POS/Kitchen display
+            console.log("Order submitted to kitchen:", cart);
+            alert("Order fired to kitchen successfully!");
+
+            cart = {};
+            refreshCartTally();
+            closeReviewModal();
+        }
+
+        window.addEventListener('DOMContentLoaded', renderTopBar);
+    </script>
+</body>
+</html>
