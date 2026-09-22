@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Table AR Menu</title>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer/dist/model-viewer.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#14110F;
+    --ink-soft:#1D1916;
+    --ink-soft2:#241F1A;
+    --paper:#F4EFE6;
+    --ember:#FF7A45;
+    --gold:#D4AF37;
+    --line:rgba(244,239,230,0.12);
+    --text-dim:#B7AFA2;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+  }
+  h1,h2,h3{font-family:'Space Grotesk',sans-serif;}
+
+  #app{
+    height:100vh;height:100dvh;
+    display:grid;
+    grid-template-rows: auto 1fr auto auto auto;
+    grid-template-areas: "strip" "stage" "meta" "arctrl" "bottombar";
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    position:relative;
+  }
+
+  /* floating table chip - replaces the old header row, costs no layout height */
+  .table-chip{
+    position:absolute;
+    top:calc(env(safe-area-inset-top,0px) + 8px);
+    right:10px;
+    z-index:5;
+    font-size:10.5px;
+    color:var(--text-dim);
+    background:rgba(20,17,15,.55);
+    border:1px solid var(--line);
+    padding:4px 9px;
+    border-radius:20px;
+    backdrop-filter:blur(4px);
+  }
+  .table-chip b{color:var(--paper);}
+
+  /* ---- dish strip ---- */
+  #strip{
+    grid-area:strip;
+    display:flex;gap:9px;
+    overflow-x:auto;overflow-y:hidden;
+    padding:10px 12px 8px;
+    scrollbar-width:none;
+    padding-top:calc(10px + env(safe-area-inset-top,0px));
+  }
+  #strip::-webkit-scrollbar{display:none;}
+  .dish-card{
+    flex:0 0 auto;width:64px;
+    display:flex;flex-direction:column;align-items:center;gap:4px;
+    cursor:pointer;opacity:.7;transition:opacity .15s, transform .15s;
+  }
+  .dish-card.active{opacity:1;}
+  .dish-card:active{transform:scale(.94);}
+  .dish-card .thumb{
+    width:64px;height:78px;border-radius:10px;object-fit:cover;
+    border:1.5px solid transparent;display:block;
+  }
+  .dish-card.active .thumb{border-color:var(--ember);box-shadow:0 0 0 3px rgba(255,122,69,.15);}
+  .dish-card .cname{font-size:9.5px;text-align:center;line-height:1.15;color:var(--text-dim);}
+  .dish-card.active .cname{color:var(--paper);}
+  .dish-card .badge{
+    position:relative;top:-72px;left:22px;
+    width:16px;height:16px;border-radius:50%;
+    background:var(--gold);color:#1A0E06;
+    font-size:9px;font-weight:700;
+    display:none;align-items:center;justify-content:center;
+    margin-bottom:-16px;
+  }
+  .dish-card.in-cart .badge{display:flex;}
+
+  /* ---- stage (maximized) ---- */
+  #stage{
+    grid-area:stage;
+    display:flex;align-items:center;justify-content:center;
+    padding:2px 10px;
+    min-height:0;
+  }
+  model-viewer#viewer{
+    width:100%;height:100%;
+    max-width:600px;
+    background:
+      radial-gradient(ellipse at 50% 85%, rgba(255,122,69,.12), transparent 60%),
+      var(--ink-soft);
+    border-radius:18px;border:1px solid var(--line);
+  }
+
+  /* ---- name + price, single line ---- */
+  #meta{
+    grid-area:meta;
+    display:flex;align-items:baseline;justify-content:center;gap:10px;
+    padding:8px 16px 2px;
+  }
+  #meta h2{font-size:16.5px;margin:0;font-weight:500;}
+  #meta .price-pill{font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--gold);font-size:15px;}
+  #meta .dot{color:var(--text-dim);font-size:12px;}
+
+  /* ---- AR VIEW control ---- */
+  #arctrl{
+    grid-area:arctrl;
+    display:flex;flex-direction:column;align-items:center;
+    gap:3px;
+    padding-bottom:8px;
+  }
+  #arctrl .ar-label{
+    font-size:10px;letter-spacing:.04em;color:var(--text-dim);
+  }
+  #ar-launch{
+    width:42px;height:42px;border-radius:50%;
+    border:1.5px solid var(--ember);
+    background:rgba(255,122,69,.08);
+    color:var(--ember);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+  #ar-launch:active{background:var(--ember);color:#1A0E06;}
+  #ar-launch svg{width:20px;height:20px;}
+
+  /* ---- bottom bar ---- */
+  #bottombar{
+    grid-area:bottombar;
+    border-top:1px solid var(--line);
+    background:linear-gradient(0deg,#181410,#14110F);
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 14px;
+    gap:12px;
+  }
+  .add-zone{flex:0 0 auto;}
+  .add-btn{
+    padding:13px 20px;border-radius:14px;border:none;
+    background:var(--ember);color:#1A0E06;
+    font-weight:700;font-family:'Space Grotesk',sans-serif;
+    font-size:13.5px;cursor:pointer;white-space:nowrap;
+  }
+  .add-btn:active{transform:scale(.96);}
+  .stepper{
+    display:flex;align-items:center;background:var(--ink-soft2);
+    border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  }
+  .stepper button{width:42px;height:46px;border:none;background:transparent;color:var(--paper);font-size:18px;font-weight:700;cursor:pointer;}
+  .stepper button.minus{color:var(--text-dim);}
+  .stepper button.plus{color:var(--ember);}
+  .stepper .qty{min-width:24px;text-align:center;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;}
+
+  .order-zone{flex:1;display:flex;align-items:center;justify-content:flex-end;gap:14px;min-width:0;}
+  .cart-count{font-size:11px;color:var(--text-dim);text-align:right;line-height:1.25;}
+  .cart-count b{color:var(--gold);font-family:'Space Grotesk',sans-serif;font-size:14.5px;display:block;}
+  .send-btn{
+    padding:14px 18px;border-radius:14px;border:1.5px solid var(--gold);
+    background:transparent;color:var(--gold);
+    font-weight:700;font-family:'Space Grotesk',sans-serif;
+    font-size:13px;cursor:pointer;white-space:nowrap;
+  }
+  .send-btn:disabled{opacity:.3;cursor:not-allowed;}
+  .send-btn:not(:disabled):active{background:var(--gold);color:#1A0E06;}
+
+  /* ---- review sheet ---- */
+  #reviewSheet{
+    position:fixed;inset:0;background:rgba(10,8,6,.6);
+    display:none;align-items:flex-end;justify-content:center;z-index:60;
+  }
+  #reviewSheet.active{display:flex;}
+  .sheet{
+    width:100%;max-width:560px;
+    background:var(--ink-soft);
+    border-top-left-radius:22px;border-top-right-radius:22px;
+    border:1px solid var(--line);border-bottom:none;
+    padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));
+    max-height:78vh;display:flex;flex-direction:column;
+  }
+  .sheet-handle{width:36px;height:4px;background:var(--line);border-radius:2px;margin:0 auto 14px;}
+  .sheet h3{margin:0 0 4px;font-size:17px;}
+  .sheet .sub{color:var(--text-dim);font-size:12px;margin:0 0 14px;}
+  .review-list{overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:12px;margin-bottom:12px;}
+  .review-row{
+    display:flex;align-items:center;justify-content:space-between;
+    border-bottom:1px solid var(--line);padding-bottom:10px;gap:10px;
+  }
+  .review-row .rname{font-size:13.5px;}
+  .review-row .rprice{font-size:11.5px;color:var(--text-dim);}
+  .review-row .stepper button{width:34px;height:34px;font-size:16px;}
+  .review-row .stepper .qty{font-size:13px;min-width:20px;}
+  .review-row .rline{font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--gold);font-size:13.5px;min-width:44px;text-align:right;}
+  .review-total{
+    display:flex;justify-content:space-between;align-items:center;
+    font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;
+    border-top:1px solid var(--line);padding-top:12px;margin-bottom:12px;
+  }
+  .confirm-order-btn{
+    width:100%;padding:15px;border-radius:14px;border:none;
+    background:var(--ember);color:#1A0E06;font-weight:700;
+    font-family:'Space Grotesk',sans-serif;font-size:14.5px;cursor:pointer;
+  }
+  .confirm-order-btn:active{transform:scale(.98);}
+  .sheet-close{
+    background:none;border:none;color:var(--text-dim);font-size:12px;
+    text-align:center;margin-top:10px;cursor:pointer;
+  }
+  .empty-review{text-align:center;color:var(--text-dim);font-size:12.5px;padding:20px 0;}
+
+  /* ---- success modal ---- */
+  #confirm{
+    position:fixed;inset:0;background:rgba(10,8,6,.75);
+    display:none;align-items:center;justify-content:center;z-index:70;padding:20px;
+  }
+  #confirm.active{display:flex;}
+  .confirm-card{
+    background:var(--ink-soft);border:1px solid var(--line);
+    border-radius:18px;padding:28px 24px;max-width:320px;text-align:center;
+  }
+  .confirm-card .check{font-size:34px;margin-bottom:8px;}
+  .confirm-card h3{margin:0 0 6px;font-size:18px;}
+  .confirm-card p{color:var(--text-dim);font-size:13px;margin:0 0 18px;}
+  .confirm-card button{
+    background:var(--ember);border:none;color:#1A0E06;
+    font-family:'Space Grotesk',sans-serif;font-weight:700;
+    padding:11px 22px;border-radius:12px;cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="table-chip">Table <b id="tableNo">12</b></div>
+
+  <div id="strip"></div>
+
+  <div id="stage">
+    <model-viewer id="viewer" camera-controls auto-rotate shadow-intensity="1"
+      ar ar-modes="webxr scene-viewer quick-look" ar-scale="fixed">
+    </model-viewer>
+  </div>
+
+  <div id="meta">
+    <h2 id="dishName">—</h2>
+    <span class="dot">·</span>
+    <span class="price-pill" id="dishPrice"></span>
+  </div>
+
+  <div id="arctrl">
+    <span class="ar-label">AR VIEW</span>
+    <button id="ar-launch" aria-label="View on your table in AR">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/>
+        <path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>
+      </svg>
+    </button>
+  </div>
+
+  <div id="bottombar">
+    <div class="add-zone" id="addZone"></div>
+    <div class="order-zone">
+      <div class="cart-count"><b id="cartTotal">$0</b><span id="cartItems">0 items</span></div>
+      <button class="send-btn" id="sendBtn" disabled>Send to kitchen</button>
+    </div>
+  </div>
+</div>
+
+<div id="reviewSheet">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h3>Review your order</h3>
+    <p class="sub">Table <span id="sheetTable">12</span> · adjust quantities before sending</p>
+    <div class="review-list" id="reviewList"></div>
+    <div class="review-total"><span>Total</span><span id="reviewTotal">$0</span></div>
+    <button class="confirm-order-btn" id="confirmOrderBtn">Confirm order</button>
+    <button class="sheet-close" onclick="closeReview()">Back to menu</button>
+  </div>
+</div>
+
+<div id="confirm">
+  <div class="confirm-card">
+    <div class="check">✓</div>
+    <h3>Order sent</h3>
+    <p id="orderSummary">Your dishes are on their way to the kitchen.</p>
+    <button onclick="closeConfirm()">Back to menu</button>
+  </div>
+</div>
+
+<script>
+const demoModel = "https://modelviewer.dev/shared-assets/models/Astronaut.glb";
+const demoIOS = "https://modelviewer.dev/shared-assets/models/Astronaut.usdz";
+const dishes = [
+  {id:1,name:"Neon Burger",price:15,img:"https://picsum.photos/seed/burger/200/260",model:demoModel,ios:demoIOS},
+  {id:2,name:"Cyber Pizza",price:18,img:"https://picsum.photos/seed/pizza/200/260",model:demoModel,ios:demoIOS},
+  {id:3,name:"Quantum Pasta",price:14,img:"https://picsum.photos/seed/pasta/200/260",model:demoModel,ios:demoIOS},
+  {id:4,name:"Data Sushi",price:22,img:"https://picsum.photos/seed/sushi/200/260",model:demoModel,ios:demoIOS},
+  {id:5,name:"Binary Steak",price:30,img:"https://picsum.photos/seed/steak/200/260",model:demoModel,ios:demoIOS},
+  {id:6,name:"Tech Tacos",price:12,img:"https://picsum.photos/seed/tacos/200/260",model:demoModel,ios:demoIOS},
+  {id:7,name:"Laser Salad",price:10,img:"https://picsum.photos/seed/salad/200/260",model:demoModel,ios:demoIOS},
+];
+
+let currentIndex = 0;
+let cart = {}; // id -> qty
+
+const strip = document.getElementById('strip');
+const viewer = document.getElementById('viewer');
+const dishName = document.getElementById('dishName');
+const dishPrice = document.getElementById('dishPrice');
+const addZone = document.getElementById('addZone');
+const cartTotalEl = document.getElementById('cartTotal');
+const cartItemsEl = document.getElementById('cartItems');
+const sendBtn = document.getElementById('sendBtn');
+const reviewList = document.getElementById('reviewList');
+const reviewTotal = document.getElementById('reviewTotal');
+
+function renderStrip(){
+  strip.innerHTML = '';
+  dishes.forEach((d,i)=>{
+    const qty = cart[d.id]||0;
+    const card = document.createElement('div');
+    card.className = 'dish-card' + (i===currentIndex?' active':'') + (qty?' in-cart':'');
+    card.innerHTML = `
+      <img class="thumb" src="${d.img}" alt="${d.name}">
+      <div class="badge">${qty}</div>
+      <div class="cname">${d.name}</div>`;
+    card.onclick = ()=>selectDish(i);
+    strip.appendChild(card);
+  });
+}
+
+function renderAddZone(){
+  const d = dishes[currentIndex];
+  const qty = cart[d.id]||0;
+  if(qty===0){
+    addZone.innerHTML = `<button class="add-btn" id="addBtn">+ Add to order</button>`;
+    document.getElementById('addBtn').onclick = ()=> setQty(d.id, 1);
+  } else {
+    addZone.innerHTML = `
+      <div class="stepper">
+        <button class="minus" id="minusBtn">−</button>
+        <span class="qty">${qty}</span>
+        <button class="plus" id="plusBtn">+</button>
+      </div>`;
+    document.getElementById('minusBtn').onclick = ()=> setQty(d.id, qty-1);
+    document.getElementById('plusBtn').onclick = ()=> setQty(d.id, qty+1);
+  }
+}
+
+function setQty(id, qty){
+  if(qty<=0){ delete cart[id]; } else { cart[id]=qty; }
+  renderAddZone();
+  renderStrip();
+  updateOrderZone();
+}
+
+function selectDish(i){
+  currentIndex = i;
+  const d = dishes[i];
+  dishName.textContent = d.name;
+  dishPrice.textContent = '$' + d.price;
+  viewer.src = d.model;
+  viewer.iosSrc = d.ios;
+  renderStrip();
+  renderAddZone();
+}
+
+function updateOrderZone(){
+  const ids = Object.keys(cart);
+  let total = 0, count = 0;
+  ids.forEach(id=>{
+    const d = dishes.find(x=>x.id==id);
+    total += d.price*cart[id];
+    count += cart[id];
+  });
+  cartTotalEl.textContent = '$'+total;
+  cartItemsEl.textContent = count + (count===1?' item':' items');
+  sendBtn.disabled = count===0;
+}
+
+function renderReview(){
+  const ids = Object.keys(cart);
+  if(ids.length===0){
+    reviewList.innerHTML = '<div class="empty-review">Your order is empty.</div>';
+    reviewTotal.textContent = '$0';
+    document.getElementById('confirmOrderBtn').disabled = true;
+    return;
+  }
+  let total = 0;
+  reviewList.innerHTML = ids.map(id=>{
+    const d = dishes.find(x=>x.id==id);
+    const qty = cart[id];
+    const line = d.price*qty;
+    total += line;
+    return `
+      <div class="review-row">
+        <div>
+          <div class="rname">${d.name}</div>
+          <div class="rprice">$${d.price} each</div>
+        </div>
+        <div class="stepper">
+          <button class="minus" onclick="reviewSetQty(${id}, ${qty-1})">−</button>
+          <span class="qty">${qty}</span>
+          <button class="plus" onclick="reviewSetQty(${id}, ${qty+1})">+</button>
+        </div>
+        <div class="rline">$${line}</div>
+      </div>`;
+  }).join('');
+  reviewTotal.textContent = '$'+total;
+}
+
+function reviewSetQty(id, qty){
+  setQty(id, qty);
+  renderReview();
+}
+
+sendBtn.onclick = ()=>{
+  renderReview();
+  document.getElementById('reviewSheet').classList.add('active');
+};
+function closeReview(){
+  document.getElementById('reviewSheet').classList.remove('active');
+}
+
+document.getElementById('confirmOrderBtn').onclick = ()=>{
+  if(Object.keys(cart).length===0) return;
+  const orderNo = Math.floor(1000+Math.random()*9000);
+  const count = Object.values(cart).reduce((a,b)=>a+b,0);
+  document.getElementById('orderSummary').textContent =
+    `Order #${orderNo} · ${count} item${count>1?'s':''} · Table ${document.getElementById('tableNo').textContent}`;
+  closeReview();
+  document.getElementById('confirm').classList.add('active');
+};
+function closeConfirm(){
+  document.getElementById('confirm').classList.remove('active');
+  cart = {};
+  renderStrip();
+  renderAddZone();
+  updateOrderZone();
+}
+
+// init
+selectDish(0);
+updateOrderZone();
+</script>
+</body>
+</html>
