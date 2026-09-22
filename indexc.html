@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Table AR Menu</title>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer/dist/model-viewer.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#14110F;
+    --ink-soft:#1D1916;
+    --paper:#F4EFE6;
+    --ember:#FF7A45;
+    --ember-dim:#7A3D24;
+    --gold:#D4AF37;
+    --line:rgba(244,239,230,0.12);
+    --text-dim:#B7AFA2;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+  }
+  h1,h2,h3,.display{font-family:'Space Grotesk',sans-serif;}
+
+  /* ---------- APP SHELL ---------- */
+  #app{
+    height:100vh;
+    height:100dvh;
+    display:grid;
+    grid-template-columns: 92px 1fr 220px;
+    grid-template-rows: 64px 1fr;
+    grid-template-areas:
+      "topbar topbar topbar"
+      "rail   stage  side";
+  }
+  @media (max-width:760px){
+    #app{grid-template-columns: 76px 1fr 88px;}
+  }
+
+  /* ---------- TOP BAR ---------- */
+  #topbar{
+    grid-area:topbar;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 20px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#181410,#14110F);
+  }
+  .table-tag{
+    font-size:12px;
+    letter-spacing:.02em;
+    color:var(--text-dim);
+  }
+  .table-tag b{color:var(--paper);}
+  .brand{
+    font-size:16px;
+    font-weight:700;
+  }
+  .brand span{color:var(--ember);}
+
+  /* ---------- LEFT RAIL ---------- */
+  #rail{
+    grid-area:rail;
+    border-right:1px solid var(--line);
+    overflow-y:auto;
+    padding:14px 10px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    scrollbar-width:none;
+  }
+  #rail::-webkit-scrollbar{display:none;}
+  .dish-thumb{
+    position:relative;
+    border-radius:14px;
+    overflow:hidden;
+    aspect-ratio:1/1;
+    cursor:pointer;
+    border:1.5px solid transparent;
+    background:var(--ink-soft);
+    transition:border-color .2s, transform .15s;
+  }
+  .dish-thumb img{width:100%;height:100%;object-fit:cover;display:block;opacity:.9;}
+  .dish-thumb.active{border-color:var(--ember);box-shadow:0 0 0 3px rgba(255,122,69,.15);}
+  .dish-thumb:active{transform:scale(.95);}
+  .dish-thumb .in-cart-dot{
+    position:absolute;top:4px;right:4px;
+    width:9px;height:9px;border-radius:50%;
+    background:var(--gold);
+    display:none;
+    box-shadow:0 0 6px var(--gold);
+  }
+  .dish-thumb.in-cart .in-cart-dot{display:block;}
+
+  /* ---------- STAGE (center) ---------- */
+  #stage{
+    grid-area:stage;
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    min-width:0;
+  }
+  .dish-meta{
+    text-align:center;
+    margin-bottom:10px;
+  }
+  .dish-meta h2{font-size:22px;margin:0 0 4px;}
+  .dish-meta p{margin:0;color:var(--text-dim);font-size:13.5px;max-width:420px;}
+
+  model-viewer#viewer{
+    width:100%;
+    max-width:520px;
+    height:min(46vh,420px);
+    --poster-color: transparent;
+    background:
+      radial-gradient(ellipse at 50% 82%, rgba(255,122,69,.12), transparent 60%),
+      var(--ink-soft);
+    border-radius:20px;
+    border:1px solid var(--line);
+  }
+  .price-pill{
+    margin-top:12px;
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    color:var(--gold);
+    font-size:15px;
+  }
+  #ar-launch{
+    margin-top:6px;
+    background:none;
+    border:1px solid var(--line);
+    color:var(--paper);
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    padding:9px 16px;
+    border-radius:22px;
+    cursor:pointer;
+  }
+  #ar-launch:active{border-color:var(--ember);}
+
+  .stage-nav{
+    position:absolute;
+    top:50%;
+    transform:translateY(-50%);
+    width:38px;height:38px;
+    border-radius:50%;
+    border:1px solid var(--line);
+    background:rgba(20,17,15,.6);
+    color:var(--paper);
+    font-size:16px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+  #prevDish{left:14px;}
+  #nextDish{right:14px;}
+
+  /* ---------- RIGHT SIDE ---------- */
+  #side{
+    grid-area:side;
+    border-left:1px solid var(--line);
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    padding:16px 12px;
+  }
+  .add-btn{
+    width:100%;
+    padding:14px 6px;
+    border-radius:14px;
+    border:none;
+    background:var(--ember);
+    color:#1A0E06;
+    font-weight:700;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:14px;
+    cursor:pointer;
+    transition:transform .12s, background .2s;
+  }
+  .add-btn:active{transform:scale(.96);}
+  .add-btn.added{background:var(--gold);}
+
+  .cart-box{
+    margin-top:16px;
+    flex:1;
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    scrollbar-width:none;
+  }
+  .cart-box::-webkit-scrollbar{display:none;}
+  .cart-line{
+    font-size:12px;
+    color:var(--text-dim);
+    display:flex;
+    justify-content:space-between;
+    border-bottom:1px solid var(--line);
+    padding-bottom:6px;
+  }
+  .cart-line b{color:var(--paper);font-weight:500;}
+
+  .cart-total{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:15px;
+    font-weight:700;
+    color:var(--paper);
+    border-top:1px solid var(--line);
+    padding-top:10px;
+    margin-top:10px;
+    display:flex;
+    justify-content:space-between;
+  }
+  .send-btn{
+    margin-top:12px;
+    width:100%;
+    padding:15px 6px;
+    border-radius:14px;
+    border:1.5px solid var(--gold);
+    background:transparent;
+    color:var(--gold);
+    font-weight:700;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:13.5px;
+    cursor:pointer;
+  }
+  .send-btn:disabled{opacity:.35;cursor:not-allowed;}
+  .send-btn:not(:disabled):active{background:var(--gold);color:#1A0E06;}
+
+  /* ---------- CONFIRM MODAL ---------- */
+  #confirm{
+    position:fixed;inset:0;
+    background:rgba(10,8,6,.7);
+    display:none;
+    align-items:center;justify-content:center;
+    z-index:50;
+    padding:20px;
+  }
+  #confirm.active{display:flex;}
+  .confirm-card{
+    background:var(--ink-soft);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:28px 24px;
+    max-width:320px;
+    text-align:center;
+  }
+  .confirm-card .check{font-size:34px;margin-bottom:8px;}
+  .confirm-card h3{margin:0 0 6px;font-size:18px;}
+  .confirm-card p{color:var(--text-dim);font-size:13px;margin:0 0 18px;}
+  .confirm-card button{
+    background:var(--ember);border:none;color:#1A0E06;
+    font-family:'Space Grotesk',sans-serif;font-weight:700;
+    padding:11px 22px;border-radius:12px;cursor:pointer;
+  }
+
+  .empty-cart{
+    font-size:12px;color:var(--text-dim);
+    text-align:center;padding:20px 4px;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="topbar">
+    <div class="table-tag">Table <b id="tableNo">12</b></div>
+    <div class="brand">HOLO<span>TABLE</span></div>
+  </div>
+
+  <div id="rail"></div>
+
+  <div id="stage">
+    <button class="stage-nav" id="prevDish">‹</button>
+    <div class="dish-meta">
+      <h2 id="dishName">—</h2>
+      <p id="dishDesc"></p>
+    </div>
+    <model-viewer id="viewer" camera-controls auto-rotate shadow-intensity="1"
+      ar ar-modes="webxr scene-viewer quick-look" ar-scale="fixed">
+    </model-viewer>
+    <div class="price-pill" id="dishPrice"></div>
+    <button id="ar-launch">View on your table (AR)</button>
+    <button class="stage-nav" id="nextDish">›</button>
+  </div>
+
+  <div id="side">
+    <button class="add-btn" id="addBtn">+ Add to order</button>
+    <div class="cart-box" id="cartBox"></div>
+    <div>
+      <div class="cart-total"><span>Total</span><span id="cartTotal">$0</span></div>
+      <button class="send-btn" id="sendBtn" disabled>Send to kitchen</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirm">
+  <div class="confirm-card">
+    <div class="check">✓</div>
+    <h3>Order sent</h3>
+    <p id="orderSummary">Your dishes are on their way to the kitchen.</p>
+    <button onclick="closeConfirm()">Back to menu</button>
+  </div>
+</div>
+
+<script>
+// ---- Demo data. Swap img/model/ios with your real hosted assets. ----
+const demoModel = "https://modelviewer.dev/shared-assets/models/Astronaut.glb";
+const demoIOS = "https://modelviewer.dev/shared-assets/models/Astronaut.usdz";
+const dishes = [
+  {id:1,name:"Neon Burger",price:15,desc:"Smoked beef patty, aged cheddar, pickled shallot.",img:"https://picsum.photos/seed/burger/200",model:demoModel,ios:demoIOS},
+  {id:2,name:"Cyber Pizza",price:18,desc:"Wood-fired, San Marzano tomato, fresh basil.",img:"https://picsum.photos/seed/pizza/200",model:demoModel,ios:demoIOS},
+  {id:3,name:"Quantum Pasta",price:14,desc:"Alfredo, roasted garlic, cracked pepper.",img:"https://picsum.photos/seed/pasta/200",model:demoModel,ios:demoIOS},
+  {id:4,name:"Data Sushi",price:22,desc:"Salmon, avocado, yuzu-wasabi.",img:"https://picsum.photos/seed/sushi/200",model:demoModel,ios:demoIOS},
+  {id:5,name:"Binary Steak",price:30,desc:"Grilled ribeye, herb butter, medium rare.",img:"https://picsum.photos/seed/steak/200",model:demoModel,ios:demoIOS},
+  {id:6,name:"Tech Tacos",price:12,desc:"Braised beef, pickled onion, lime crema.",img:"https://picsum.photos/seed/tacos/200",model:demoModel,ios:demoIOS},
+  {id:7,name:"Laser Salad",price:10,desc:"Charred greens, citrus vinaigrette.",img:"https://picsum.photos/seed/salad/200",model:demoModel,ios:demoIOS},
+];
+
+let currentIndex = 0;
+let cart = {}; // id -> qty
+
+const rail = document.getElementById('rail');
+const viewer = document.getElementById('viewer');
+const dishName = document.getElementById('dishName');
+const dishDesc = document.getElementById('dishDesc');
+const dishPrice = document.getElementById('dishPrice');
+const addBtn = document.getElementById('addBtn');
+const cartBox = document.getElementById('cartBox');
+const cartTotal = document.getElementById('cartTotal');
+const sendBtn = document.getElementById('sendBtn');
+
+function renderRail(){
+  rail.innerHTML = '';
+  dishes.forEach((d,i)=>{
+    const el = document.createElement('div');
+    el.className = 'dish-thumb' + (i===currentIndex?' active':'') + (cart[d.id]?' in-cart':'');
+    el.innerHTML = `<img src="${d.img}" alt="${d.name}"><span class="in-cart-dot"></span>`;
+    el.onclick = ()=>selectDish(i);
+    rail.appendChild(el);
+  });
+}
+
+function selectDish(i){
+  currentIndex = i;
+  const d = dishes[i];
+  dishName.textContent = d.name;
+  dishDesc.textContent = d.desc;
+  dishPrice.textContent = '$' + d.price;
+  viewer.src = d.model;
+  viewer.iosSrc = d.ios;
+  addBtn.classList.toggle('added', !!cart[d.id]);
+  addBtn.textContent = cart[d.id] ? '✓ Added — tap for another' : '+ Add to order';
+  renderRail();
+}
+
+function updateCartPanel(){
+  const ids = Object.keys(cart);
+  if(ids.length===0){
+    cartBox.innerHTML = '<div class="empty-cart">Nothing added yet.<br>Browse dishes on the left.</div>';
+    sendBtn.disabled = true;
+    cartTotal.textContent = '$0';
+    return;
+  }
+  let total = 0;
+  cartBox.innerHTML = ids.map(id=>{
+    const d = dishes.find(x=>x.id==id);
+    const qty = cart[id];
+    total += d.price*qty;
+    return `<div class="cart-line"><span>${qty}× ${d.name}</span><b>$${d.price*qty}</b></div>`;
+  }).join('');
+  cartTotal.textContent = '$'+total;
+  sendBtn.disabled = false;
+}
+
+addBtn.onclick = ()=>{
+  const d = dishes[currentIndex];
+  cart[d.id] = (cart[d.id]||0)+1;
+  addBtn.classList.add('added');
+  addBtn.textContent = '✓ Added — tap for another';
+  updateCartPanel();
+  renderRail();
+};
+
+document.getElementById('prevDish').onclick = ()=> selectDish((currentIndex-1+dishes.length)%dishes.length);
+document.getElementById('nextDish').onclick = ()=> selectDish((currentIndex+1)%dishes.length);
+
+sendBtn.onclick = ()=>{
+  const orderNo = Math.floor(1000+Math.random()*9000);
+  const items = Object.keys(cart).reduce((s,id)=>s+cart[id],0);
+  document.getElementById('orderSummary').textContent =
+    `Order #${orderNo} · ${items} item${items>1?'s':''} · Table ${document.getElementById('tableNo').textContent}`;
+  document.getElementById('confirm').classList.add('active');
+};
+function closeConfirm(){
+  document.getElementById('confirm').classList.remove('active');
+  cart = {};
+  updateCartPanel();
+  renderRail();
+}
+
+// init
+renderRail();
+selectDish(0);
+updateCartPanel();
+</script>
+</body>
+</html>
