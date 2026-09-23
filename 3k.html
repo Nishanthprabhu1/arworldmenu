@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#0d0f12]">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>The Spice Bistro — KDS Expeditor Touch Console</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            kds: {
+              bg: '#0c0e12',
+              card: '#161920',
+              cardHeader: '#1e222c',
+              border: 'rgba(255, 255, 255, 0.12)',
+              gold: '#e5b358',
+              amber: '#f59e0b',
+              crimson: '#ef4444',
+              emerald: '#10b981',
+              cyan: '#06b6d4'
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+            ticket: ['"Bebas Neue"', 'Impact', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+    }
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: #0c0e12; }
+    ::-webkit-scrollbar-thumb { background: #2f3647; border-radius: 9999px; }
+
+    @keyframes rushPulse {
+      0%, 100% { border-color: #ef4444; box-shadow: 0 0 25px -4px rgba(239, 68, 68, 0.65); }
+      50% { border-color: #f87171; box-shadow: 0 0 8px 0px rgba(239, 68, 68, 0.3); }
+    }
+    .ticket-delayed { animation: rushPulse 1.8s infinite ease-in-out; }
+
+    .item-struck {
+      opacity: 0.35;
+      text-decoration: line-through;
+      filter: grayscale(0.8);
+      transition: all 0.2s ease;
+    }
+    .touch-btn:active { transform: scale(0.96); }
+
+    @keyframes itemSyncFlash {
+      0%   { background-color: rgba(6, 182, 212, 0.35); border-color: #06b6d4; box-shadow: 0 0 0 2px rgba(6,182,212,0.25); }
+      100% { background-color: #191d26; border-color: #1e293b; box-shadow: 0 0 0 0 rgba(6,182,212,0); }
+    }
+    .item-sync-flash { animation: itemSyncFlash 0.9s ease-out; }
+
+    @keyframes stageBumpFlash {
+      0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+      25%  { box-shadow: 0 0 34px 6px rgba(16, 185, 129, 0.55); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+    .stage-bump-flash { animation: stageBumpFlash 0.9s ease-out; }
+
+    .synced-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: #67e8f9;
+      animation: syncedPillPop 1.4s ease-out forwards;
+    }
+    @keyframes syncedPillPop {
+      0%   { opacity: 0; transform: translateY(-2px); }
+      15%  { opacity: 1; transform: translateY(0); }
+      75%  { opacity: 1; }
+      100% { opacity: 0; }
+    }
+  </style>
+</head>
+<body class="h-full bg-kds-bg text-slate-100 font-sans antialiased overflow-hidden flex flex-col">
+
+  <header class="bg-[#12151c] border-b border-kds-border px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0 z-30 shadow-lg">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-600 via-amber-700 to-amber-900 border border-amber-500/50 flex items-center justify-center font-ticket text-2xl text-amber-200 tracking-wider shadow-md">
+        SB
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="font-bold text-base tracking-wide text-white flex items-center gap-2">
+            <span>THE SPICE BISTRO</span>
+            <span class="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">Live Expo</span>
+          </h1>
+        </div>
+        <p class="text-[11px] text-slate-400 font-mono flex items-center gap-2">
+          <span>Real-time Guest &amp; Floor Sync Active</span>
+          <span class="text-slate-600">•</span>
+          <span class="text-kds-emerald font-semibold flex items-center gap-1">
+            <span class="w-2 h-2 rounded-full bg-kds-emerald animate-pulse"></span> PASS ONLINE
+          </span>
+        </p>
+      </div>
+    </div>
+
+    <nav class="flex items-center gap-1.5 p-1 bg-[#181c25] rounded-xl border border-kds-border overflow-x-auto max-w-full">
+      <button class="station-tab active touch-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-black shadow transition" data-station="ALL">
+        All Stations <span class="ml-1 px-1.5 py-0.2 rounded bg-black/20 text-[10px]" id="badgeCountAll">0</span>
+      </button>
+      <button class="station-tab touch-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition" data-station="TANDOOR">
+        Tandoor &amp; Grill <span class="ml-1 px-1.5 py-0.2 rounded bg-slate-800 text-[10px]" id="badgeCountTandoor">0</span>
+      </button>
+      <button class="station-tab touch-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition" data-station="CURRY">
+        Curry &amp; Gravy <span class="ml-1 px-1.5 py-0.2 rounded bg-slate-800 text-[10px]" id="badgeCountCurry">0</span>
+      </button>
+      <button class="station-tab touch-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition" data-station="BIRYANI">
+        Biryani &amp; Rice <span class="ml-1 px-1.5 py-0.2 rounded bg-slate-800 text-[10px]" id="badgeCountBiryani">0</span>
+      </button>
+    </nav>
+
+    <div class="flex items-center gap-2.5">
+      <div class="px-3 py-1 bg-[#181c25] rounded-xl border border-kds-border text-right font-mono">
+        <span class="text-[9px] block uppercase text-slate-400 font-semibold tracking-wider">Service Clock</span>
+        <span class="text-sm font-bold text-amber-300 tracking-wider" id="kdsClock">00:00:00</span>
+      </div>
+
+      <button id="toggleAudioBtn" class="touch-btn flex items-center gap-1.5 px-3 py-2 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-300 text-xs font-semibold hover:bg-amber-500/20 transition">
+        <span id="audioIcon">🔔</span>
+        <span id="audioLabel">Bell: ON</span>
+      </button>
+
+      <button id="btnRecallModal" class="touch-btn px-3 py-2 rounded-xl bg-[#1c212d] border border-kds-border hover:border-slate-500 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition">
+        <span>History (<span id="recalledCount">0</span>)</span>
+      </button>
+    </div>
+  </header>
+
+  <section class="bg-[#151922] border-b border-kds-border px-4 py-2 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shrink-0">
+    <div class="flex items-center gap-2 text-xs font-mono">
+      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700">
+        <span class="text-slate-400">QUEUED:</span>
+        <span class="font-bold text-cyan-400 text-sm" id="statQueued">0</span>
+      </div>
+      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700">
+        <span class="text-slate-400">COOKING:</span>
+        <span class="font-bold text-amber-400 text-sm" id="statCooking">0</span>
+      </div>
+      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700">
+        <span class="text-slate-400">PASS READY:</span>
+        <span class="font-bold text-emerald-400 text-sm" id="statReady">0</span>
+      </div>
+      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-950/40 border border-red-500/40">
+        <span class="text-red-400 font-semibold flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span> DELAYED:
+        </span>
+        <span class="font-bold text-red-300 text-sm" id="statDelayed">0</span>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 overflow-x-auto py-0.5">
+      <span class="text-[11px] uppercase font-mono tracking-wider text-amber-400/90 font-bold shrink-0 flex items-center gap-1">
+        <span>🔥 EXPO BATCH:</span>
+      </span>
+      <div class="flex items-center gap-2 shrink-0 font-mono text-xs" id="expoAggregatorChips"></div>
+    </div>
+  </section>
+
+  <main class="flex-1 overflow-x-auto overflow-y-hidden p-4 bg-[#0a0c10]">
+    <div class="h-full flex items-start gap-4 pb-2" id="ticketGridContainer" style="min-width: max-content;"></div>
+  </main>
+
+  <div id="recallModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm opacity-0 pointer-events-none transition-all duration-200">
+    <div class="bg-[#181c26] border border-kds-border w-full max-w-2xl rounded-2xl p-5 shadow-2xl relative max-h-[85vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-kds-border pb-3 mb-4">
+        <div>
+          <h2 class="text-lg font-bold text-white">Completed Kitchen Tickets</h2>
+          <p class="text-xs text-slate-400">Restore or close settled tables</p>
+        </div>
+        <button onclick="closeRecallModal()" class="touch-btn w-8 h-8 rounded-xl bg-slate-800 text-slate-300 font-bold">✕</button>
+      </div>
+      <div class="flex-1 overflow-y-auto space-y-3 pr-1" id="recallListContainer"></div>
+    </div>
+  </div>
+
+  <div id="kdsToast" class="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-[#1e2330] border border-amber-500/50 text-xs text-amber-200 shadow-2xl opacity-0 pointer-events-none transition-all duration-300">
+    <span class="text-lg" id="toastIcon">🔔</span>
+    <span class="font-mono font-medium" id="toastMsg">Ready</span>
+  </div>
+
+  <script>
+    let audioContext = null;
+    let audioEnabled = true;
+
+    function initAudio() {
+      if (!audioContext) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) audioContext = new AudioCtx();
+      }
+    }
+
+    function playKitchenBell() {
+      if (!audioEnabled) return;
+      try {
+        initAudio();
+        if (audioContext.state === 'suspended') audioContext.resume();
+        const now = audioContext.currentTime;
+        [1760, 2637].forEach((freq, idx) => {
+          const osc = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq + (idx * 6), now);
+          gain.gain.setValueAtTime(0.28, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+          osc.connect(gain);
+          gain.connect(audioContext.destination);
+          osc.start(now);
+          osc.stop(now + 1.2);
+        });
+      } catch (err) {}
+    }
+
+    const BRIDGE_CHANNEL_NAME = 'bistro_order_bridge';
+    const hasBroadcast = 'BroadcastChannel' in window;
+    const bus = hasBroadcast ? new BroadcastChannel(BRIDGE_CHANNEL_NAME) : null;
+
+    let tickets = [];
+    let recalledTickets = [];
+    let currentStationFilter = "ALL";
+    const processedOrderIds = new Set();
+
+    let recentlyToggledKey = null;
+    let recentlyBumpedTicketId = null;
+
+    function broadcastKdsUpdate(type, table, payload){
+      const msg = { type, table, payload, timestamp: Date.now() };
+      if(bus) bus.postMessage(msg);
+      localStorage.setItem('kds_last_event', JSON.stringify(msg));
+    }
+
+    function handleCustomerOrder(msg){
+      if(!msg) return;
+
+      if(msg.type === 'NEW_ORDER'){
+        const p = msg.payload;
+
+        if (processedOrderIds.has(p.id) || tickets.some(t => t.id === p.id)) {
+          return;
+        }
+        processedOrderIds.add(p.id);
+
+        const existingTableTicket = tickets.find(t => t.table === p.table && t.status !== 'COMPLETED');
+
+        if (existingTableTicket) {
+          let highestItemId = Math.max(...existingTableTicket.items.map(i => i.id), 0);
+          p.items.forEach(newItem => {
+            highestItemId++;
+            existingTableTicket.items.push({
+              id: highestItemId,
+              name: newItem.name,
+              qty: newItem.qty,
+              station: newItem.station,
+              modifier: newItem.modifier,
+              price: newItem.price,
+              done: false
+            });
+          });
+
+          p.stations.forEach(st => {
+            if(!existingTableTicket.stations.includes(st)) {
+              existingTableTicket.stations.push(st);
+            }
+          });
+
+          if (existingTableTicket.status === 'READY') {
+            existingTableTicket.status = 'COOKING';
+            const completedNow = existingTableTicket.items.filter(i => i.done).length;
+            broadcastKdsUpdate('STATUS_UPDATE', existingTableTicket.table, {
+              status: 'COOKING',
+              ticketId: existingTableTicket.id,
+              completed: completedNow,
+              total: existingTableTicket.items.length
+            });
+          }
+          existingTableTicket.orderType = "Updated / Add-on";
+
+          playKitchenBell();
+          showToast(`⚡ Added dishes to Table ${existingTableTicket.table}`);
+          renderTickets();
+          return;
+        }
+
+        const newTicket = {
+          id: p.id,
+          table: p.table,
+          isVIP: p.isVIP || false,
+          orderType: p.orderType || "AR Mobile Order",
+          server: p.server || "Direct QR App",
+          guestName: p.guestName || "Guest",
+          phone: p.phone || "",
+          timeElapsedSec: 0,
+          status: "QUEUED",
+          stations: p.stations,
+          items: p.items.map((it, idx) => ({ ...it, id: idx + 1, done: false }))
+        };
+
+        tickets.unshift(newTicket);
+        playKitchenBell();
+        showToast(`🔥 NEW ORDER: Table ${newTicket.table} (${newTicket.id})`);
+        renderTickets();
+      }
+
+      if(msg.type === 'BELL_ALERT'){
+        playKitchenBell();
+        showToast(`🛎️ TABLE ${msg.table}: ${msg.payload.action.toUpperCase()} requested!`);
+      }
+
+      if(msg.type === 'TABLE_CLOSED'){
+        const tIdx = tickets.findIndex(t => t.table === msg.table);
+        if(tIdx !== -1){
+          recalledTickets.unshift({ ...tickets[tIdx], bumpedAt: 'Settled by Cashier' });
+          tickets.splice(tIdx, 1);
+          document.getElementById("recalledCount").textContent = recalledTickets.length;
+          renderTickets();
+        }
+      }
+    }
+
+    if(bus){
+      bus.onmessage = (e) => handleCustomerOrder(e.data);
+    } else {
+      window.addEventListener('storage', (e) => {
+        if(e.key === 'kds_last_event'){
+          try { handleCustomerOrder(JSON.parse(e.newValue)); } catch(err){}
+        }
+      });
+    }
+
+    let lastBridgeTimestamp = Date.now();
+    function pollOrderBridge(){
+      try {
+        const raw = localStorage.getItem('kds_last_event');
+        if(!raw) return;
+        const msg = JSON.parse(raw);
+        if(msg && typeof msg.timestamp === 'number' && msg.timestamp > lastBridgeTimestamp){
+          lastBridgeTimestamp = msg.timestamp;
+          handleCustomerOrder(msg);
+        }
+      } catch(err) {}
+    }
+    setInterval(pollOrderBridge, 2500);
+
+    function formatTime(sec) {
+      const mins = Math.floor(sec / 60);
+      const secs = sec % 60;
+      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function initTimers() {
+      const clockEl = document.getElementById("kdsClock");
+      setInterval(() => {
+        clockEl.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+      }, 1000);
+
+      setInterval(() => {
+        tickets.forEach(t => {
+          if (t.status !== 'READY') t.timeElapsedSec++;
+        });
+        updateTicketElapsedDOM();
+        updateBatchAggregator();
+      }, 1000);
+    }
+
+    function updateTicketElapsedDOM() {
+      tickets.forEach(t => {
+        const timerEl = document.getElementById(`timer-${t.id}`);
+        const cardEl = document.getElementById(`card-${t.id}`);
+        if (!timerEl || !cardEl) return;
+        timerEl.textContent = formatTime(t.timeElapsedSec);
+        if (t.timeElapsedSec >= 1080 && t.status !== 'READY') {
+          cardEl.classList.add('ticket-delayed');
+        }
+      });
+    }
+
+    function renderTickets() {
+      const container = document.getElementById("ticketGridContainer");
+      container.innerHTML = "";
+
+      const filtered = tickets.filter(t => {
+        if (currentStationFilter === "ALL") return true;
+        return t.stations.includes(currentStationFilter);
+      });
+
+      updateSummaryMetrics();
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="flex flex-col items-center justify-center w-96 h-80 rounded-2xl border border-dashed border-slate-700 bg-kds-card text-center p-6 my-auto">
+            <span class="text-4xl mb-2">🍽️</span>
+            <h3 class="text-base font-bold text-white">Station Clear</h3>
+            <p class="text-xs text-slate-400 mt-1">Waiting for customer orders...</p>
+          </div>
+        `;
+        return;
+      }
+
+      filtered.forEach(t => {
+        let borderClass = "border-emerald-500/40";
+        if (t.status === "READY") borderClass = "border-cyan-500 shadow-lg shadow-cyan-950/40";
+        else if (t.status === "COOKING") borderClass = "border-amber-500";
+        else if (t.timeElapsedSec >= 1080) borderClass = "border-red-500 ticket-delayed";
+
+        const bumpFlashClass = (recentlyBumpedTicketId === t.id) ? "stage-bump-flash" : "";
+
+        const card = document.createElement("div");
+        card.id = `card-${t.id}`;
+        card.className = `w-[325px] sm:w-[350px] shrink-0 bg-kds-card rounded-2xl border-2 ${borderClass} shadow-xl flex flex-col justify-between overflow-hidden transition-all ${bumpFlashClass}`;
+
+        card.innerHTML = `
+          <div class="bg-kds-cardHeader p-3 border-b border-kds-border">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="font-ticket text-3xl tracking-wider text-white bg-slate-900 px-2.5 py-0.5 rounded-lg border border-slate-700">${t.table}</span>
+                <span class="text-xs font-mono font-bold text-slate-300">${t.orderType}</span>
+              </div>
+              <div class="px-2.5 py-1 rounded-lg border text-sm font-mono flex items-center gap-1 bg-slate-900 border-slate-700">
+                <span>⏱️</span>
+                <span id="timer-${t.id}">${formatTime(t.timeElapsedSec)}</span>
+              </div>
+            </div>
+            <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-800 text-[11px] font-mono text-slate-400">
+              <span class="text-slate-300 font-bold">${t.guestName}</span>
+              <span class="text-amber-400">${t.server}</span>
+            </div>
+            <div class="flex items-center gap-1.5 mt-2 flex-wrap">
+              ${t.stations.map(st => `<span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700">${st}</span>`).join('')}
+              <span class="ml-auto font-mono text-[10px] text-slate-500 font-bold">${t.id}</span>
+            </div>
+          </div>
+
+          <div class="p-3 flex-1 overflow-y-auto space-y-2.5 max-h-[360px] bg-[#14171e]">
+            ${t.items.map(item => {
+              const itemFlashClass = (recentlyToggledKey === `${t.id}::${item.id}`) ? "item-sync-flash" : "";
+              return `
+              <div class="p-2.5 rounded-xl border border-slate-800 bg-[#191d26] flex items-start gap-2.5 cursor-pointer ${itemFlashClass}" onclick="toggleItemStrike('${t.id}',${item.id})">
+                <div class="mt-0.5 w-5 h-5 rounded-md border ${item.done ? 'bg-emerald-500 border-emerald-400 text-slate-950 font-bold' : 'border-slate-600 bg-slate-900'} flex items-center justify-center shrink-0 text-xs">
+                  ${item.done ? '✓' : ''}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-baseline justify-between gap-2">
+                    <span class="font-bold text-sm text-slate-100 ${item.done ? 'item-struck' : ''}">
+                      <span class="inline-block px-1.5 py-0.5 text-xs font-mono font-black rounded bg-amber-400 text-slate-950 mr-1">${item.qty}x</span>${item.name}
+                    </span>
+                    <span class="text-[9px] font-mono uppercase text-slate-500 font-bold">${item.station}</span>
+                  </div>
+                  ${item.modifier ? `<div class="mt-1 text-[11px] font-semibold text-amber-300">⚡ ${item.modifier}</div>` : ''}
+                  ${itemFlashClass ? `<div class="mt-1"><span class="synced-pill">📡 Guest notified</span></div>` : ''}
+                </div>
+              </div>
+            `;
+            }).join('')}
+          </div>
+
+          <div class="p-3 bg-kds-cardHeader border-t border-kds-border space-y-2">
+            <div class="grid grid-cols-3 gap-1 text-[10px] font-mono text-center font-bold">
+              <span class="py-1 rounded ${t.status === 'QUEUED' ? 'bg-cyan-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-500'}">1. QUEUED</span>
+              <span class="py-1 rounded ${t.status === 'COOKING' ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-500'}">2. COOKING</span>
+              <span class="py-1 rounded ${t.status === 'READY' ? 'bg-emerald-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-500'}">3. READY</span>
+            </div>
+
+            <button onclick="bumpTicketStage('${t.id}')" class="w-full touch-btn py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition ${getBumpBtnStyle(t.status)}">
+              <span>${getBumpBtnLabel(t.status)}</span>
+              <span>→</span>
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      updateBatchAggregator();
+    }
+
+    function getBumpBtnLabel(status) {
+      if (status === 'QUEUED') return "Start Cooking (Sync Phone)";
+      if (status === 'COOKING') return "Plated → Pass Ready (Notify Phone)";
+      if (status === 'READY') return "Complete Order & Clear Pass";
+      return "Bump";
+    }
+
+    function getBumpBtnStyle(status) {
+      if (status === 'QUEUED') return "bg-amber-500 text-slate-950";
+      if (status === 'COOKING') return "bg-emerald-500 text-slate-950";
+      if (status === 'READY') return "bg-cyan-500 text-slate-950";
+      return "bg-slate-700 text-white";
+    }
+
+    function toggleItemStrike(ticketId, itemId) {
+      const ticket = tickets.find(t => t.id === ticketId);
+      if (!ticket) return;
+      const item = ticket.items.find(i => i.id === itemId);
+      if (!item) return;
+      item.done = !item.done;
+
+      const completed = ticket.items.filter(i => i.done).length;
+      const total = ticket.items.length;
+
+      broadcastKdsUpdate('ITEM_UPDATE', ticket.table, {
+        ticketId: ticket.id,
+        itemId: item.id,
+        itemName: item.name,
+        done: item.done,
+        completed,
+        total
+      });
+
+      recentlyToggledKey = `${ticket.id}::${item.id}`;
+      setTimeout(() => { recentlyToggledKey = null; renderTickets(); }, 900);
+
+      if (ticket.items.every(i => i.done) && ticket.status === 'COOKING') {
+        ticket.status = 'READY';
+        playKitchenBell();
+        broadcastKdsUpdate('STATUS_UPDATE', ticket.table, { status: 'READY', ticketId: ticket.id, completed, total });
+        showToast(`Table ${ticket.table} All Plated → Pass Ready!`);
+      }
+      renderTickets();
+    }
+
+    function bumpTicketStage(ticketId) {
+      const idx = tickets.findIndex(t => t.id === ticketId);
+      if (idx === -1) return;
+      const t = tickets[idx];
+
+      if (t.status === 'QUEUED') {
+        t.status = 'COOKING';
+        playKitchenBell();
+        const completed = t.items.filter(i => i.done).length;
+        broadcastKdsUpdate('STATUS_UPDATE', t.table, { status: 'COOKING', ticketId: t.id, completed, total: t.items.length });
+        showToast(`Cooking started for Table ${t.table}`);
+        recentlyBumpedTicketId = t.id;
+        setTimeout(() => { recentlyBumpedTicketId = null; renderTickets(); }, 900);
+      } else if (t.status === 'COOKING') {
+        t.status = 'READY';
+        t.items.forEach(i => i.done = true);
+        playKitchenBell();
+        broadcastKdsUpdate('STATUS_UPDATE', t.table, { status: 'READY', ticketId: t.id, completed: t.items.length, total: t.items.length });
+        showToast(`Table ${t.table} ready at pass! Customer notified.`);
+        recentlyBumpedTicketId = t.id;
+        setTimeout(() => { recentlyBumpedTicketId = null; renderTickets(); }, 900);
+      } else if (t.status === 'READY') {
+        broadcastKdsUpdate('ORDER_COMPLETE', t.table, {
+          ticketId: t.id,
+          items: t.items.map(i => ({ id: i.id, name: i.name, qty: i.qty }))
+        });
+        showToast(`Table ${t.table} dispatched to floor.`);
+
+        recentlyBumpedTicketId = t.id;
+        renderTickets();
+        setTimeout(() => {
+          const stillIdx = tickets.findIndex(tk => tk.id === ticketId);
+          if (stillIdx !== -1) {
+            recalledTickets.unshift({ ...tickets[stillIdx], bumpedAt: new Date().toLocaleTimeString() });
+            tickets.splice(stillIdx, 1);
+            document.getElementById("recalledCount").textContent = recalledTickets.length;
+          }
+          recentlyBumpedTicketId = null;
+          renderTickets();
+        }, 700);
+        return;
+      }
+      renderTickets();
+    }
+
+    function updateBatchAggregator() {
+      const container = document.getElementById("expoAggregatorChips");
+      container.innerHTML = "";
+      const counts = {};
+      tickets.forEach(t => {
+        if (t.status !== 'READY') {
+          t.items.forEach(i => {
+            if (!i.done) counts[i.name] = (counts[i.name] || 0) + i.qty;
+          });
+        }
+      });
+      const entries = Object.entries(counts);
+      if (!entries.length) {
+        container.innerHTML = `<span class="text-slate-500 italic">No batch backlog</span>`;
+        return;
+      }
+      entries.slice(0, 5).forEach(([dishName, totalQty]) => {
+        const chip = document.createElement("div");
+        chip.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#202532] border border-amber-500/30 text-slate-200 shrink-0";
+        chip.innerHTML = `<span class="px-1.5 py-0.2 rounded bg-amber-500 text-slate-950 font-black text-[11px]">${totalQty}x</span><span class="truncate max-w-[130px] font-semibold">${dishName}</span>`;
+        container.appendChild(chip);
+      });
+    }
+
+    function updateSummaryMetrics() {
+      document.getElementById("statQueued").textContent = tickets.filter(t => t.status === 'QUEUED').length;
+      document.getElementById("statCooking").textContent = tickets.filter(t => t.status === 'COOKING').length;
+      document.getElementById("statReady").textContent = tickets.filter(t => t.status === 'READY').length;
+      document.getElementById("statDelayed").textContent = tickets.filter(t => t.timeElapsedSec >= 1080 && t.status !== 'READY').length;
+
+      document.getElementById("badgeCountAll").textContent = tickets.length;
+      ["TANDOOR","CURRY","BIRYANI"].forEach(st => {
+        const el = document.getElementById(`badgeCount${st[0] + st.slice(1).toLowerCase()}`);
+        if(el) el.textContent = tickets.filter(t => t.stations.includes(st)).length;
+      });
+    }
+
+    function openRecallModal() {
+      const modal = document.getElementById("recallModal");
+      const list = document.getElementById("recallListContainer");
+      list.innerHTML = recalledTickets.length ? recalledTickets.map(rt => `
+        <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-ticket text-xl text-white">${rt.table}</span>
+              <span class="text-xs font-mono font-bold text-amber-400">${rt.id}</span>
+              <span class="text-xs text-slate-400">Cleared @ ${rt.bumpedAt}</span>
+            </div>
+            <p class="text-xs text-slate-300 mt-1">${rt.items.map(i => `${i.qty}x${i.name}`).join(', ')}</p>
+          </div>
+          <button onclick="closeTableFromKds('${rt.table}')" class="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-xs">
+            Close Table Out
+          </button>
+        </div>
+      `).join('') : '<p class="text-slate-400 text-xs text-center py-8">No completed tickets in memory.</p>';
+      modal.classList.remove("opacity-0", "pointer-events-none");
+    }
+
+    function closeTableFromKds(tableId){
+      broadcastKdsUpdate('TABLE_CLOSED', tableId, {});
+      showToast(`Table ${tableId} close signal sent.`);
+      closeRecallModal();
+    }
+
+    function closeRecallModal() {
+      document.getElementById("recallModal").classList.add("opacity-0", "pointer-events-none");
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById("kdsToast");
+      document.getElementById("toastMsg").textContent = msg;
+      toast.classList.remove("opacity-0", "pointer-events-none");
+      setTimeout(() => toast.classList.add("opacity-0", "pointer-events-none"), 3500);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      initTimers();
+      renderTickets();
+
+      document.querySelectorAll(".station-tab").forEach(tab => {
+        tab.addEventListener("click", (e) => {
+          document.querySelectorAll(".station-tab").forEach(t => {
+            t.classList.remove("active", "bg-amber-500", "text-black");
+            t.classList.add("text-slate-300");
+          });
+          const btn = e.currentTarget;
+          btn.classList.add("active", "bg-amber-500", "text-black");
+          btn.classList.remove("text-slate-300");
+          currentStationFilter = btn.getAttribute("data-station");
+          renderTickets();
+        });
+      });
+
+      document.getElementById("toggleAudioBtn").onclick = () => {
+        audioEnabled = !audioEnabled;
+        document.getElementById("audioIcon").textContent = audioEnabled ? "🔔" : "🔕";
+        document.getElementById("audioLabel").textContent = audioEnabled ? "Bell: ON" : "Bell: MUTE";
+      };
+
+      document.getElementById("btnRecallModal").onclick = openRecallModal;
+    });
+  </script>
+</body>
+</html>
