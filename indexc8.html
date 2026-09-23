@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Table AR Menu</title>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer/dist/model-viewer.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#14110F;
+    --ink-soft:#1D1916;
+    --ink-soft2:#241F1A;
+    --paper:#F4EFE6;
+    --ember:#FF7A45;
+    --gold:#D4AF37;
+    --line:rgba(244,239,230,0.12);
+    --text-dim:#B7AFA2;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+  }
+  h1,h2,h3{font-family:'Space Grotesk',sans-serif;}
+
+  #app{
+    height:100vh;height:100dvh;
+    display:grid;
+    grid-template-rows: auto 1fr auto auto;
+    grid-template-areas: "topbar" "stage" "meta" "strip";
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    position:relative;
+  }
+
+  /* floating table chip, no dedicated row */
+  .table-chip{
+    position:absolute;
+    top:calc(env(safe-area-inset-top,0px) + 8px);
+    left:50%;transform:translateX(-50%);
+    z-index:6;
+    font-size:10px;color:var(--text-dim);
+    background:rgba(20,17,15,.55);
+    border:1px solid var(--line);
+    padding:3px 10px;border-radius:20px;
+    backdrop-filter:blur(4px);
+    pointer-events:none;
+  }
+  .table-chip b{color:var(--paper);}
+
+  /* order-status chip, now sits inline above the Add button (not floating over it) */
+  .add-col{display:flex;flex-direction:column;align-items:flex-start;gap:5px;}
+  .status-chip{
+    display:none;
+    align-items:center;gap:6px;
+    font-size:10px;color:var(--paper);
+    background:rgba(20,17,15,.65);
+    border:1px solid rgba(212,175,55,.4);
+    padding:4px 10px 4px 6px;border-radius:20px;
+    cursor:pointer;
+  }
+  .status-chip.show{display:flex;}
+  .status-chip .pulse-dot{
+    width:6px;height:6px;border-radius:50%;background:var(--gold);
+    box-shadow:0 0 0 0 rgba(212,175,55,.6);
+    animation:pulse 1.6s infinite;
+  }
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(212,175,55,.55);}
+    70%{box-shadow:0 0 0 6px rgba(212,175,55,0);}
+    100%{box-shadow:0 0 0 0 rgba(212,175,55,0);}
+  }
+
+  /* ---- top bar: add + send ---- */
+  #topbar{
+    grid-area:topbar;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 14px 8px;
+    gap:12px;
+    border-bottom:1px solid var(--line);
+  }
+  .add-zone{flex:0 0 auto;}
+  .add-btn{
+    padding:12px 18px;border-radius:14px;border:none;
+    background:var(--ember);color:#1A0E06;
+    font-weight:700;font-family:'Space Grotesk',sans-serif;
+    font-size:13px;cursor:pointer;white-space:nowrap;
+  }
+  .add-btn:active{transform:scale(.96);}
+  .stepper{
+    display:flex;align-items:center;background:var(--ink-soft2);
+    border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  }
+  .stepper button{width:38px;height:42px;border:none;background:transparent;color:var(--paper);font-size:17px;font-weight:700;cursor:pointer;}
+  .stepper button.minus{color:var(--text-dim);}
+  .stepper button.plus{color:var(--ember);}
+  .stepper .qty{min-width:22px;text-align:center;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13.5px;}
+
+  .order-zone{flex:1;display:flex;align-items:center;justify-content:flex-end;gap:12px;min-width:0;}
+  .cart-count{font-size:10.5px;color:var(--text-dim);text-align:right;line-height:1.2;}
+  .cart-count b{color:var(--gold);font-family:'Space Grotesk',sans-serif;font-size:14px;display:block;}
+  .send-btn{
+    padding:13px 16px;border-radius:14px;border:1.5px solid var(--gold);
+    background:transparent;color:var(--gold);
+    font-weight:700;font-family:'Space Grotesk',sans-serif;
+    font-size:12.5px;cursor:pointer;white-space:nowrap;
+  }
+  .send-btn:disabled{opacity:.3;cursor:not-allowed;}
+  .send-btn:not(:disabled):active{background:var(--gold);color:#1A0E06;}
+
+  /* ---- stage (maximized 3D space) ---- */
+  #stage{
+    grid-area:stage;
+    position:relative;
+    display:flex;align-items:center;justify-content:center;
+    padding:6px 10px;
+    min-height:0;
+  }
+  model-viewer#viewer{
+    width:100%;height:100%;
+    max-width:640px;
+    background:
+      radial-gradient(ellipse at 50% 85%, rgba(255,122,69,.12), transparent 60%),
+      var(--ink-soft);
+    border-radius:18px;border:1px solid var(--line);
+    cursor:pointer;
+  }
+  .ar-hint{
+    position:absolute;
+    bottom:16px;left:50%;transform:translateX(-50%);
+    font-size:11px;color:var(--paper);
+    background:rgba(20,17,15,.6);
+    border:1px solid var(--line);
+    padding:6px 14px;border-radius:20px;
+    backdrop-filter:blur(4px);
+    display:flex;align-items:center;gap:6px;
+    transition:opacity .4s;
+    pointer-events:none;
+  }
+  .ar-hint svg{width:13px;height:13px;flex:0 0 auto;}
+  .ar-hint.hide{opacity:0;}
+
+  /* ---- steam overlay ---- */
+  .steam{
+    position:absolute;
+    left:50%;bottom:14%;
+    width:1px;height:1px;
+    pointer-events:none;
+    z-index:3;
+    mix-blend-mode:screen;
+  }
+  .wisp{
+    position:absolute;
+    bottom:0;left:0;
+    width:46px;height:70px;
+    border-radius:50%;
+    background:radial-gradient(circle,rgba(255,255,255,.55) 0%,rgba(255,255,255,.18) 45%,rgba(255,255,255,0) 75%);
+    filter:blur(6px);
+    opacity:0;
+    animation:rise 5.5s ease-in infinite;
+    transform-origin:bottom center;
+  }
+  .wisp:nth-child(1){left:-34px;animation-delay:0s;width:38px;}
+  .wisp:nth-child(2){left:-4px;animation-delay:1.3s;width:50px;}
+  .wisp:nth-child(3){left:24px;animation-delay:2.6s;width:34px;}
+  .wisp:nth-child(4){left:-16px;animation-delay:3.8s;width:42px;}
+  @keyframes rise{
+    0%{opacity:0;transform:translateY(0) translateX(0) scale(.6) rotate(0deg);}
+    12%{opacity:.5;}
+    55%{opacity:.32;}
+    100%{opacity:0;transform:translateY(-150px) translateX(14px) scale(1.7) rotate(8deg);}
+  }
+
+  /* ---- rotate-hint hand gesture ---- */
+  .rotate-hint{
+    position:absolute;
+    left:50%;bottom:18%;
+    transform:translateX(-50%);
+    width:76px;height:46px;
+    pointer-events:none;
+    z-index:4;
+    opacity:0;
+    transition:opacity .5s;
+  }
+  .rotate-hint.show{opacity:1;}
+  .rotate-hint svg{width:100%;height:100%;overflow:visible;}
+  .rotate-hint .hand{
+    animation:hand-drag 2.6s ease-in-out infinite;
+    transform-origin:center;
+  }
+  .rotate-hint .arc{
+    stroke-dasharray:60;
+    stroke-dashoffset:60;
+    animation:arc-trace 2.6s ease-in-out infinite;
+  }
+  @keyframes hand-drag{
+    0%{transform:translateX(-18px);opacity:0;}
+    12%{opacity:1;}
+    50%{transform:translateX(18px);opacity:1;}
+    62%{opacity:1;}
+    75%{opacity:0;transform:translateX(18px);}
+    100%{opacity:0;transform:translateX(-18px);}
+  }
+  @keyframes arc-trace{
+    0%{stroke-dashoffset:60;opacity:0;}
+    12%{opacity:.6;}
+    50%{stroke-dashoffset:0;opacity:.6;}
+    75%{opacity:0;}
+    100%{opacity:0;stroke-dashoffset:0;}
+  }
+
+  /* ---- floating quick-actions rail ---- */
+  .quick-actions{
+    position:absolute;
+    right:10px;top:50%;transform:translateY(-50%);
+    z-index:5;
+    display:flex;flex-direction:column;gap:10px;
+  }
+  .qa-btn{
+    width:48px;height:48px;border-radius:50%;
+    border:1px solid var(--line);
+    background:rgba(20,17,15,.6);
+    backdrop-filter:blur(4px);
+    color:var(--paper);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    position:relative;
+  }
+  .qa-btn svg{width:22px;height:22px;}
+  .qa-btn:active{transform:scale(.92);}
+  .qa-btn.bell{color:var(--gold);border-color:rgba(212,175,55,.5);}
+  .qa-btn.bell.cooldown{opacity:.4;pointer-events:none;}
+  .qa-btn.receipt{color:var(--gold);}
+
+  /* ---- toast ---- */
+  .toast{
+    position:fixed;
+    left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));
+    transform:translateX(-50%) translateY(10px);
+    background:var(--ink-soft2);
+    border:1px solid var(--line);
+    color:var(--paper);
+    font-size:12.5px;
+    padding:10px 16px;border-radius:20px;
+    z-index:80;
+    opacity:0;pointer-events:none;
+    transition:opacity .3s, transform .3s;
+    white-space:nowrap;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast.highlight{
+    border-color:var(--gold);
+    background:linear-gradient(180deg,#241F1A,#1D1916);
+    box-shadow:0 0 0 1px rgba(212,175,55,.3), 0 8px 24px rgba(0,0,0,.4);
+    font-weight:700;
+    padding:12px 20px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .toast.highlight .tick{color:var(--gold);}
+
+  /* ---- name + price ---- */
+  #meta{
+    grid-area:meta;
+    display:flex;align-items:baseline;justify-content:center;gap:10px;
+    padding:8px 16px;
+  }
+  #meta h2{font-size:16px;margin:0;font-weight:500;}
+  #meta .price-pill{font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--gold);font-size:14.5px;}
+  #meta .dot{color:var(--text-dim);font-size:12px;}
+
+  /* ---- bottom dish strip ---- */
+  #strip{
+    grid-area:strip;
+    display:flex;gap:9px;
+    overflow-x:auto;overflow-y:hidden;
+    padding:8px 12px calc(10px + env(safe-area-inset-bottom,0px));
+    border-top:1px solid var(--line);
+    background:linear-gradient(0deg,#181410,#14110F);
+    scrollbar-width:none;
+  }
+  #strip::-webkit-scrollbar{display:none;}
+  .dish-card{
+    flex:0 0 auto;width:62px;
+    display:flex;flex-direction:column;align-items:center;gap:4px;
+    cursor:pointer;opacity:.7;transition:opacity .15s, transform .15s;
+  }
+  .dish-card.active{opacity:1;}
+  .dish-card:active{transform:scale(.94);}
+  .dish-card .thumb{
+    width:62px;height:76px;border-radius:10px;object-fit:cover;
+    border:1.5px solid transparent;display:block;
+  }
+  .dish-card.active .thumb{border-color:var(--ember);box-shadow:0 0 0 3px rgba(255,122,69,.15);}
+  .dish-card .cname{font-size:9.5px;text-align:center;line-height:1.15;color:var(--text-dim);}
+  .dish-card.active .cname{color:var(--paper);}
+  .dish-card .badge{
+    position:relative;top:-70px;left:20px;
+    width:16px;height:16px;border-radius:50%;
+    background:var(--gold);color:#1A0E06;
+    font-size:9px;font-weight:700;
+    display:none;align-items:center;justify-content:center;
+    margin-bottom:-16px;
+  }
+  .dish-card.in-cart .badge{display:flex;}
+
+  /* ---- review sheet ---- */
+  #reviewSheet{
+    position:fixed;inset:0;background:rgba(10,8,6,.6);
+    display:none;align-items:flex-end;justify-content:center;z-index:60;
+  }
+  #reviewSheet.active{display:flex;}
+  .sheet{
+    width:100%;max-width:560px;
+    background:var(--ink-soft);
+    border-top-left-radius:22px;border-top-right-radius:22px;
+    border:1px solid var(--line);border-bottom:none;
+    padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));
+    max-height:78vh;display:flex;flex-direction:column;
+  }
+  .sheet-handle{width:36px;height:4px;background:var(--line);border-radius:2px;margin:0 auto 14px;}
+  .sheet h3{margin:0 0 4px;font-size:17px;}
+  .sheet .sub{color:var(--text-dim);font-size:12px;margin:0 0 14px;}
+  .review-list{overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:12px;margin-bottom:12px;}
+  .review-row{
+    display:flex;align-items:center;justify-content:space-between;
+    border-bottom:1px solid var(--line);padding-bottom:10px;gap:10px;
+  }
+  .review-row .rname{font-size:13.5px;}
+  .review-row .rprice{font-size:11.5px;color:var(--text-dim);}
+  .review-row .stepper button{width:34px;height:34px;font-size:16px;}
+  .review-row .stepper .qty{font-size:13px;min-width:20px;}
+  .review-row .rline{font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--gold);font-size:13.5px;min-width:44px;text-align:right;}
+  .review-total{
+    display:flex;justify-content:space-between;align-items:center;
+    font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;
+    border-top:1px solid var(--line);padding-top:12px;margin-bottom:12px;
+  }
+  .confirm-order-btn{
+    width:100%;padding:15px;border-radius:14px;border:none;
+    background:var(--ember);color:#1A0E06;font-weight:700;
+    font-family:'Space Grotesk',sans-serif;font-size:14.5px;cursor:pointer;
+  }
+  .confirm-order-btn:active{transform:scale(.98);}
+  .sheet-close{
+    background:none;border:none;color:var(--text-dim);font-size:12px;
+    text-align:center;margin-top:10px;cursor:pointer;
+  }
+  .empty-review{text-align:center;color:var(--text-dim);font-size:12.5px;padding:20px 0;}
+
+  /* ---- bell options sheet (2x2 grid) ---- */
+  .bell-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin-bottom:6px;
+  }
+  .bell-option{
+    display:flex;flex-direction:column;align-items:center;gap:8px;
+    padding:18px 8px;
+    border:1px solid var(--line);
+    border-radius:16px;
+    background:var(--ink-soft2);
+    color:var(--paper);
+    font-family:'Inter',sans-serif;font-size:12.5px;font-weight:600;
+    cursor:pointer;text-align:center;
+  }
+  .bell-option .bi{
+    width:42px;height:42px;border-radius:50%;
+    background:rgba(212,175,55,.1);
+    border:1px solid rgba(212,175,55,.35);
+    color:var(--gold);
+    display:flex;align-items:center;justify-content:center;
+    flex:0 0 auto;
+  }
+  .bell-option .bi svg{width:19px;height:19px;}
+  .bell-option:active{transform:scale(.96);border-color:var(--gold);}
+
+  /* ---- order status sheet ---- */
+  .status-steps{
+    display:flex;flex-direction:column;gap:0;margin:6px 0 16px;
+  }
+  .status-step{
+    display:flex;align-items:flex-start;gap:12px;
+    padding:10px 0;
+  }
+  .status-step .node{
+    width:22px;height:22px;border-radius:50%;
+    border:2px solid var(--line);
+    flex:0 0 auto;margin-top:1px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;color:var(--text-dim);
+    position:relative;
+  }
+  .status-step:not(:last-child)::before{
+    content:'';position:absolute;
+    width:2px;height:34px;
+    background:var(--line);
+    margin-left:10px;margin-top:32px;
+  }
+  .status-step.done .node{border-color:var(--gold);background:var(--gold);color:#1A0E06;}
+  .status-step.active .node{border-color:var(--ember);color:var(--ember);}
+  .status-step.active .node{animation:pulse 1.6s infinite;}
+  .status-step .label{font-size:13.5px;}
+  .status-step.done .label,.status-step.active .label{color:var(--paper);}
+  .status-step:not(.done):not(.active) .label{color:var(--text-dim);}
+  .status-step .time{font-size:10.5px;color:var(--text-dim);margin-top:2px;}
+
+  /* ---- selfie modal ---- */
+  #selfieModal{
+    position:fixed;inset:0;background:rgba(10,8,6,.85);
+    display:none;align-items:center;justify-content:center;z-index:75;padding:20px;
+  }
+  #selfieModal.active{display:flex;}
+  .selfie-card{
+    background:var(--ink-soft);border:1px solid var(--line);
+    border-radius:18px;padding:16px;max-width:360px;width:100%;text-align:center;
+  }
+  .selfie-card h3{margin:0 0 10px;font-size:15px;}
+  .selfie-preview{
+    width:100%;border-radius:12px;border:1px solid var(--line);
+    display:block;margin-bottom:14px;background:var(--ink-soft2);
+  }
+  .selfie-actions{display:flex;gap:10px;}
+  .selfie-actions button{
+    flex:1;padding:12px;border-radius:12px;font-family:'Space Grotesk',sans-serif;
+    font-weight:700;font-size:13px;cursor:pointer;
+  }
+  .selfie-share{background:var(--ember);border:none;color:#1A0E06;}
+  .selfie-close{background:transparent;border:1px solid var(--line);color:var(--text-dim);}
+  .selfie-loading{padding:30px 0;color:var(--text-dim);font-size:13px;}
+
+  /* ---- bill split sheet ---- */
+  .split-tabs{display:flex;gap:8px;margin-bottom:14px;}
+  .split-tab{
+    flex:1;padding:9px;border-radius:12px;border:1px solid var(--line);
+    background:transparent;color:var(--text-dim);font-size:12.5px;cursor:pointer;
+    font-family:'Inter',sans-serif;font-weight:600;
+  }
+  .split-tab.active{border-color:var(--ember);color:var(--paper);background:rgba(255,122,69,.08);}
+  .guest-row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 0;border-bottom:1px solid var(--line);
+  }
+  .guest-row .gname{font-size:13.5px;}
+  .guest-row .gamt{font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--gold);font-size:13.5px;}
+  .guest-row .paid-btn{
+    font-size:10.5px;padding:6px 10px;border-radius:10px;cursor:pointer;
+    border:1px solid var(--line);background:transparent;color:var(--text-dim);
+    font-family:'Inter',sans-serif;margin-left:10px;
+  }
+  .guest-row .paid-btn.paid{border-color:var(--gold);color:var(--gold);}
+  .guest-count-row{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .guest-slider-wrap{margin-bottom:16px;}
+  .guest-slider-head{
+    display:flex;justify-content:space-between;align-items:baseline;
+    margin-bottom:10px;
+  }
+  .guest-slider-head .gcount{
+    font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--gold);font-size:20px;
+  }
+  input.guest-slider{
+    -webkit-appearance:none;appearance:none;
+    width:100%;height:4px;border-radius:2px;
+    background:var(--line);
+    outline:none;
+  }
+  input.guest-slider::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;
+    width:24px;height:24px;border-radius:50%;
+    background:var(--gold);
+    border:3px solid var(--ink);
+    box-shadow:0 0 0 1px rgba(212,175,55,.5);
+    cursor:pointer;
+    margin-top:-10px;
+  }
+  input.guest-slider::-moz-range-thumb{
+    width:24px;height:24px;border-radius:50%;
+    background:var(--gold);border:3px solid var(--ink);
+    box-shadow:0 0 0 1px rgba(212,175,55,.5);cursor:pointer;
+  }
+  input.guest-slider::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:var(--line);}
+  .guest-slider-ticks{
+    display:flex;justify-content:space-between;
+    font-size:9.5px;color:var(--text-dim);margin-top:4px;
+  }
+
+  .item-assign-row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:9px 0;border-bottom:1px solid var(--line);gap:8px;
+  }
+  .item-assign-row .iname{font-size:13px;flex:1;}
+  .assign-cycle{
+    font-size:11px;padding:6px 10px;border-radius:10px;cursor:pointer;
+    border:1px solid var(--ember);color:var(--ember);background:rgba(255,122,69,.08);
+    font-family:'Inter',sans-serif;font-weight:600;white-space:nowrap;
+  }
+
+  /* ---- status sheet, bell sheet & bill sheet (share the bottom-sheet pattern) ---- */
+  #statusSheet, #billSheet, #bellSheet{
+    position:fixed;inset:0;background:rgba(10,8,6,.6);
+    display:none;align-items:flex-end;justify-content:center;z-index:65;
+  }
+  #statusSheet.active, #billSheet.active, #bellSheet.active{display:flex;}
+
+  /* ---- success modal ---- */
+  #confirm{
+    position:fixed;inset:0;background:rgba(10,8,6,.75);
+    display:none;align-items:center;justify-content:center;z-index:70;padding:20px;
+  }
+  #confirm.active{display:flex;}
+  .confirm-card{
+    background:var(--ink-soft);border:1px solid var(--line);
+    border-radius:18px;padding:28px 24px;max-width:320px;text-align:center;
+  }
+  .confirm-card .check{font-size:34px;margin-bottom:8px;}
+  .confirm-card h3{margin:0 0 6px;font-size:18px;}
+  .confirm-card p{color:var(--text-dim);font-size:13px;margin:0 0 18px;}
+  .confirm-card button{
+    background:var(--ember);border:none;color:#1A0E06;
+    font-family:'Space Grotesk',sans-serif;font-weight:700;
+    padding:11px 22px;border-radius:12px;cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="table-chip">Table <b id="tableNo">12</b></div>
+
+  <div id="topbar">
+    <div class="add-col">
+      <div class="status-chip" id="statusChip" onclick="openStatusSheet()">
+        <span class="pulse-dot"></span>
+        <span id="statusChipText">Preparing</span>
+      </div>
+      <div class="add-zone" id="addZone"></div>
+    </div>
+    <div class="order-zone">
+      <div class="cart-count"><b id="cartTotal">$0</b><span id="cartItems">0 items</span></div>
+      <button class="send-btn" id="sendBtn" disabled>Send to kitchen</button>
+    </div>
+  </div>
+
+  <div id="stage">
+    <model-viewer id="viewer" camera-controls auto-rotate rotation-per-second="14deg" shadow-intensity="1"
+      ar ar-modes="webxr scene-viewer quick-look" ar-scale="fixed">
+    </model-viewer>
+    <div class="ar-hint" id="arHint">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/>
+        <path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>
+      </svg>
+      <span>Tap to view on your table</span>
+    </div>
+    <div class="steam" aria-hidden="true">
+      <div class="wisp"></div>
+      <div class="wisp"></div>
+      <div class="wisp"></div>
+      <div class="wisp"></div>
+    </div>
+    <div class="rotate-hint" id="rotateHint" aria-hidden="true">
+      <svg viewBox="0 0 76 46">
+        <path class="arc" d="M14 34 A 26 26 0 0 1 62 34" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2" stroke-linecap="round"/>
+        <g class="hand">
+          <path d="M30 20c0-2.2 1.8-4 4-4s4 1.8 4 4v6c0-2.2 1.8-4 4-4s4 1.8 4 4v2c0-1.8 1.5-3.3 3.3-3.3s3.3 1.5 3.3 3.3v6.5c0 5.5-4.5 10-10 10h-3c-4 0-6.3-1.4-8.5-4l-3.6-4.4c-1.1-1.4-.9-3.4.5-4.4 1.3-1 3.1-.8 4.2.4l1.3 1.5V20z"
+            fill="#F4EFE6" stroke="rgba(20,17,15,.4)" stroke-width=".6"/>
+        </g>
+      </svg>
+    </div>
+
+    <div class="quick-actions">
+      <button class="qa-btn bell" id="bellBtn" aria-label="Call waiter" title="Call waiter">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 17h16a2 2 0 0 1-2-2v-4a6 6 0 0 0-12 0v4a2 2 0 0 1-2 2z"/>
+          <path d="M10 21a2 2 0 0 0 4 0"/>
+        </svg>
+      </button>
+      <button class="qa-btn selfie" id="selfieBtn" aria-label="Capture AR selfie" title="Capture photo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 8a2 2 0 0 1 2-2h1l1.4-2h7.2L17 6h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8z"/>
+          <circle cx="12" cy="13" r="3.4"/>
+        </svg>
+      </button>
+      <button class="qa-btn receipt" id="billBtn" aria-label="Split the bill" title="Split the bill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z"/>
+          <path d="M9 8h6M9 12h6"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="meta">
+    <h2 id="dishName">—</h2>
+    <span class="dot">·</span>
+    <span class="price-pill" id="dishPrice"></span>
+  </div>
+
+  <div id="strip"></div>
+</div>
+
+<div id="reviewSheet">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h3>Review your order</h3>
+    <p class="sub">Table <span id="sheetTable">12</span> · adjust quantities before sending</p>
+    <div class="review-list" id="reviewList"></div>
+    <div class="review-total"><span>Total</span><span id="reviewTotal">$0</span></div>
+    <button class="confirm-order-btn" id="confirmOrderBtn">Confirm order</button>
+    <button class="sheet-close" onclick="closeReview()">Back to menu</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div id="confirm">
+  <div class="confirm-card">
+    <div class="check">✓</div>
+    <h3>Order sent</h3>
+    <p id="orderSummary">Your dishes are on their way to the kitchen.</p>
+    <button onclick="closeConfirm()">Back to menu</button>
+  </div>
+</div>
+
+<div id="bellSheet">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h3>How can we help?</h3>
+    <p class="sub">Table <span id="bellTable">12</span></p>
+    <div class="bell-grid">
+      <button class="bell-option" onclick="sendBellRequest('water')">
+        <span class="bi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg></span>
+        Need water
+      </button>
+      <button class="bell-option" onclick="sendBellRequest('cutlery')">
+        <span class="bi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v8M5 2v5a2 2 0 0 0 4 0V2M9 2v20M17 2c-2 0-3 2-3 5s1 4 3 4v11"/></svg></span>
+        Need cutlery
+      </button>
+      <button class="bell-option" onclick="sendBellRequest('waiter')">
+        <span class="bi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17h16a2 2 0 0 1-2-2v-4a6 6 0 0 0-12 0v4a2 2 0 0 1-2 2z"/><path d="M10 21a2 2 0 0 0 4 0"/></svg></span>
+        Call waiter
+      </button>
+      <button class="bell-option" onclick="sendBellRequest('bill')">
+        <span class="bi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z"/><path d="M9 8h6M9 12h6"/></svg></span>
+        Bill
+      </button>
+    </div>
+    <button class="sheet-close" onclick="closeBellSheet()">Cancel</button>
+  </div>
+</div>
+
+<div id="statusSheet">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h3>Order status</h3>
+    <p class="sub" id="statusOrderMeta">Order · Table 12</p>
+    <div class="status-steps" id="statusSteps"></div>
+    <button class="sheet-close" onclick="closeStatusSheet()">Close</button>
+  </div>
+</div>
+
+<div id="selfieModal">
+  <div class="selfie-card">
+    <h3>Your table, your dish</h3>
+    <div id="selfieBody"><div class="selfie-loading">Capturing…</div></div>
+    <div class="selfie-actions">
+      <button class="selfie-close" onclick="closeSelfie()">Close</button>
+      <button class="selfie-share" id="selfieShareBtn">Share</button>
+    </div>
+  </div>
+</div>
+
+<div id="billSheet">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h3>Split the bill</h3>
+    <p class="sub">Total so far: <span id="billTotal">$0</span></p>
+    <div class="split-tabs">
+      <button class="split-tab active" id="tabEven" onclick="setSplitMode('even')">Split evenly</button>
+      <button class="split-tab" id="tabItem" onclick="setSplitMode('item')">Split by item</button>
+    </div>
+    <div id="splitBody" style="overflow-y:auto;flex:1;"></div>
+    <button class="sheet-close" onclick="closeBillSheet()">Close</button>
+  </div>
+</div>
+
+<script>
+const demoModel = "https://modelviewer.dev/shared-assets/models/Astronaut.glb";
+const demoIOS = "https://modelviewer.dev/shared-assets/models/Astronaut.usdz";
+const dishes = [
+  {id:1,name:"Neon Burger",price:15,img:"https://picsum.photos/seed/burger/200/260",model:demoModel,ios:demoIOS},
+  {id:2,name:"Cyber Pizza",price:18,img:"https://picsum.photos/seed/pizza/200/260",model:demoModel,ios:demoIOS},
+  {id:3,name:"Quantum Pasta",price:14,img:"https://picsum.photos/seed/pasta/200/260",model:demoModel,ios:demoIOS},
+  {id:4,name:"Data Sushi",price:22,img:"https://picsum.photos/seed/sushi/200/260",model:demoModel,ios:demoIOS},
+  {id:5,name:"Binary Steak",price:30,img:"https://picsum.photos/seed/steak/200/260",model:demoModel,ios:demoIOS},
+  {id:6,name:"Tech Tacos",price:12,img:"https://picsum.photos/seed/tacos/200/260",model:demoModel,ios:demoIOS},
+  {id:7,name:"Laser Salad",price:10,img:"https://picsum.photos/seed/salad/200/260",model:demoModel,ios:demoIOS},
+];
+
+let currentIndex = 0;
+let cart = {}; // id -> qty
+
+const strip = document.getElementById('strip');
+const viewer = document.getElementById('viewer');
+const dishName = document.getElementById('dishName');
+const dishPrice = document.getElementById('dishPrice');
+const addZone = document.getElementById('addZone');
+const cartTotalEl = document.getElementById('cartTotal');
+const cartItemsEl = document.getElementById('cartItems');
+const sendBtn = document.getElementById('sendBtn');
+const reviewList = document.getElementById('reviewList');
+const reviewTotal = document.getElementById('reviewTotal');
+const arHint = document.getElementById('arHint');
+const rotateHint = document.getElementById('rotateHint');
+const statusChip = document.getElementById('statusChip');
+const statusChipText = document.getElementById('statusChipText');
+const toastEl = document.getElementById('toast');
+const tableNoText = ()=> document.getElementById('tableNo').textContent;
+
+let orders = [];      // { no, items:[{name,price,qty}], total, stage, placedAt }
+const STAGES = ['Received','Preparing','Plating','On its way'];
+
+function renderStrip(){
+  strip.innerHTML = '';
+  dishes.forEach((d,i)=>{
+    const qty = cart[d.id]||0;
+    const card = document.createElement('div');
+    card.className = 'dish-card' + (i===currentIndex?' active':'') + (qty?' in-cart':'');
+    card.innerHTML = `
+      <img class="thumb" src="${d.img}" alt="${d.name}">
+      <div class="badge">${qty}</div>
+      <div class="cname">${d.name}</div>`;
+    card.onclick = ()=>selectDish(i);
+    strip.appendChild(card);
+  });
+}
+
+function renderAddZone(){
+  const d = dishes[currentIndex];
+  const qty = cart[d.id]||0;
+  if(qty===0){
+    addZone.innerHTML = `<button class="add-btn" id="addBtn">+ Add to order</button>`;
+    document.getElementById('addBtn').onclick = ()=> setQty(d.id, 1);
+  } else {
+    addZone.innerHTML = `
+      <div class="stepper">
+        <button class="minus" id="minusBtn">−</button>
+        <span class="qty">${qty}</span>
+        <button class="plus" id="plusBtn">+</button>
+      </div>`;
+    document.getElementById('minusBtn').onclick = ()=> setQty(d.id, qty-1);
+    document.getElementById('plusBtn').onclick = ()=> setQty(d.id, qty+1);
+  }
+}
+
+function setQty(id, qty){
+  if(qty<=0){ delete cart[id]; } else { cart[id]=qty; }
+  renderAddZone();
+  renderStrip();
+  updateOrderZone();
+}
+
+function selectDish(i){
+  currentIndex = i;
+  const d = dishes[i];
+  dishName.textContent = d.name;
+  dishPrice.textContent = '$' + d.price;
+  viewer.src = d.model;
+  viewer.iosSrc = d.ios;
+  renderStrip();
+  renderAddZone();
+  // show the AR hint again for the newly selected dish, then fade it
+  arHint.classList.remove('hide');
+  clearTimeout(window.__hintTimer);
+  window.__hintTimer = setTimeout(()=> arHint.classList.add('hide'), 3200);
+
+  // show the rotate gesture hint for a couple of loops, then fade it
+  rotateHint.classList.add('show');
+  clearTimeout(window.__rotateTimer);
+  window.__rotateTimer = setTimeout(()=> rotateHint.classList.remove('show'), 5400);
+}
+
+function updateOrderZone(){
+  const ids = Object.keys(cart);
+  let total = 0, count = 0;
+  ids.forEach(id=>{
+    const d = dishes.find(x=>x.id==id);
+    total += d.price*cart[id];
+    count += cart[id];
+  });
+  cartTotalEl.textContent = '$'+total;
+  cartItemsEl.textContent = count + (count===1?' item':' items');
+  sendBtn.disabled = count===0;
+}
+
+function renderReview(){
+  const ids = Object.keys(cart);
+  if(ids.length===0){
+    reviewList.innerHTML = '<div class="empty-review">Your order is empty.</div>';
+    reviewTotal.textContent = '$0';
+    document.getElementById('confirmOrderBtn').disabled = true;
+    return;
+  }
+  let total = 0;
+  reviewList.innerHTML = ids.map(id=>{
+    const d = dishes.find(x=>x.id==id);
+    const qty = cart[id];
+    const line = d.price*qty;
+    total += line;
+    return `
+      <div class="review-row">
+        <div>
+          <div class="rname">${d.name}</div>
+          <div class="rprice">$${d.price} each</div>
+        </div>
+        <div class="stepper">
+          <button class="minus" onclick="reviewSetQty(${id}, ${qty-1})">−</button>
+          <span class="qty">${qty}</span>
+          <button class="plus" onclick="reviewSetQty(${id}, ${qty+1})">+</button>
+        </div>
+        <div class="rline">$${line}</div>
+      </div>`;
+  }).join('');
+  reviewTotal.textContent = '$'+total;
+}
+
+function reviewSetQty(id, qty){
+  setQty(id, qty);
+  renderReview();
+}
+
+sendBtn.onclick = ()=>{
+  renderReview();
+  document.getElementById('reviewSheet').classList.add('active');
+};
+function closeReview(){
+  document.getElementById('reviewSheet').classList.remove('active');
+}
+
+document.getElementById('confirmOrderBtn').onclick = ()=>{
+  if(Object.keys(cart).length===0) return;
+  const orderNo = Math.floor(1000+Math.random()*9000);
+  const items = Object.keys(cart).map(id=>{
+    const d = dishes.find(x=>x.id==id);
+    return {name:d.name, price:d.price, qty:cart[id]};
+  });
+  const total = items.reduce((s,i)=>s+i.price*i.qty,0);
+  const count = items.reduce((s,i)=>s+i.qty,0);
+
+  const order = {no:orderNo, items, total, stage:0, placedAt:Date.now()};
+  orders.push(order);
+  startStatusSimulation(order);
+
+  document.getElementById('orderSummary').textContent =
+    `Order #${orderNo} · ${count} item${count>1?'s':''} · Table ${tableNoText()}`;
+  closeReview();
+  document.getElementById('confirm').classList.add('active');
+};
+
+// ---- live order status (demo simulation; wire to your KDS/POS webhook in production) ----
+function startStatusSimulation(order){
+  statusChip.classList.add('show');
+  updateStatusChip(order);
+  const advance = ()=>{
+    if(order.stage < STAGES.length-1){
+      order.stage++;
+      updateStatusChip(order);
+      if(document.getElementById('statusSheet').classList.contains('active')) renderStatusSheet();
+      if(order.stage < STAGES.length-1) window.__statusTimer = setTimeout(advance, 7000);
+    }
+  };
+  window.__statusTimer = setTimeout(advance, 7000);
+}
+function updateStatusChip(order){
+  statusChipText.textContent = STAGES[order.stage];
+}
+function openStatusSheet(){
+  if(orders.length===0) return;
+  renderStatusSheet();
+  document.getElementById('statusSheet').classList.add('active');
+}
+function closeStatusSheet(){ document.getElementById('statusSheet').classList.remove('active'); }
+function renderStatusSheet(){
+  const order = orders[orders.length-1];
+  document.getElementById('statusOrderMeta').textContent = `Order #${order.no} · Table ${tableNoText()}`;
+  document.getElementById('statusSteps').innerHTML = STAGES.map((label,i)=>{
+    const cls = i<order.stage ? 'done' : (i===order.stage ? 'active' : '');
+    return `<div class="status-step ${cls}">
+      <div class="node">${i<order.stage?'✓':''}</div>
+      <div><div class="label">${label}</div></div>
+    </div>`;
+  }).join('');
+}
+
+// ---- call waiter bell ----
+const bellBtn = document.getElementById('bellBtn');
+function playChime(){
+  try{
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const notes = [880, 1320];
+    notes.forEach((freq,i)=>{
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + i*0.14);
+      gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + i*0.14 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + i*0.14 + 0.5);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(ctx.currentTime + i*0.14);
+      osc.stop(ctx.currentTime + i*0.14 + 0.55);
+    });
+  }catch(e){ /* audio not available */ }
+}
+function showToast(msg, highlight){
+  toastEl.innerHTML = highlight ? `<span class="tick">✓</span><span>${msg}</span>` : msg;
+  toastEl.classList.toggle('highlight', !!highlight);
+  toastEl.classList.add('show');
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(()=> toastEl.classList.remove('show'), highlight ? 3400 : 2600);
+}
+bellBtn.onclick = ()=>{
+  document.getElementById('bellTable').textContent = tableNoText();
+  document.getElementById('bellSheet').classList.add('active');
+};
+function closeBellSheet(){ document.getElementById('bellSheet').classList.remove('active'); }
+function sendBellRequest(type){
+  closeBellSheet();
+  if(type==='bill'){
+    showToast('Your bill is on its way!', true);
+    setTimeout(()=> document.getElementById('billBtn').click(), 700);
+    return;
+  }
+  const messages = {
+    water: 'Water is arriving in a few seconds',
+    cutlery: 'Cutlery is arriving in a few seconds',
+    waiter: 'Waiter is arriving in a few seconds'
+  };
+  playChime();
+  showToast(messages[type], true);
+  bellBtn.classList.add('cooldown');
+  setTimeout(()=> bellBtn.classList.remove('cooldown'), 15000);
+}
+
+// ---- AR / dish selfie capture ----
+const selfieModal = document.getElementById('selfieModal');
+const selfieBody = document.getElementById('selfieBody');
+const selfieShareBtn = document.getElementById('selfieShareBtn');
+let lastSelfieBlob = null;
+let lastSelfieHashtags = '';
+
+document.getElementById('selfieBtn').onclick = async ()=>{
+  selfieModal.classList.add('active');
+  selfieBody.innerHTML = '<div class="selfie-loading">Capturing…</div>';
+  try{
+    const blob = await viewer.toBlob({idealAspect:true});
+    const dishLabel = dishes[currentIndex].name;
+    const watermarked = await watermarkBlob(blob, dishLabel);
+    lastSelfieBlob = watermarked;
+    lastSelfieHashtags = buildHashtags(dishLabel);
+    const url = URL.createObjectURL(watermarked);
+    selfieBody.innerHTML = `<img class="selfie-preview" src="${url}" alt="Captured dish">
+      <p style="font-size:11.5px;color:var(--text-dim);margin:0 0 4px;text-align:left;">${lastSelfieHashtags}</p>`;
+  }catch(e){
+    selfieBody.innerHTML = '<div class="selfie-loading">Could not capture — try again.</div>';
+  }
+};
+function buildHashtags(dishLabel){
+  const slug = dishLabel.replace(/[^a-zA-Z0-9]/g,'');
+  return `#${slug} #HoloTable #ARDining #FoodieMoment #TableTech`;
+}
+function watermarkBlob(blob, dishLabel){
+  return new Promise((resolve)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width; canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img,0,0);
+      const pad = Math.round(img.width*0.035);
+      const bandH = pad*3.6;
+      ctx.fillStyle = 'rgba(0,0,0,.4)';
+      ctx.fillRect(0, img.height-bandH, img.width, bandH);
+      ctx.fillStyle = '#F4EFE6';
+      ctx.font = `700 ${Math.round(img.width*0.034)}px sans-serif`;
+      ctx.fillText(`${dishLabel} · HOLOTABLE`, pad, img.height-bandH+pad*1.3);
+      ctx.fillStyle = '#D4AF37';
+      ctx.font = `${Math.round(img.width*0.026)}px sans-serif`;
+      ctx.fillText(buildHashtags(dishLabel), pad, img.height-pad*0.9);
+      canvas.toBlob(b=> resolve(b || blob), 'image/png');
+    };
+    img.src = URL.createObjectURL(blob);
+  });
+}
+selfieShareBtn.onclick = async ()=>{
+  if(!lastSelfieBlob) return;
+  const file = new File([lastSelfieBlob], `dish-${Date.now()}.png`, {type:'image/png'});
+  const captionText = `Check out what I ordered! ${lastSelfieHashtags}`;
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:'My dish', text:captionText}); return; }
+    catch(e){ /* user cancelled or share failed, fall through to download */ }
+  }
+  const url = URL.createObjectURL(lastSelfieBlob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'my-dish.png'; a.click();
+};
+function closeSelfie(){
+  selfieModal.classList.remove('active');
+  selfieBody.innerHTML = '<div class="selfie-loading">Capturing…</div>';
+}
+
+// ---- in-app bill split ----
+let splitMode = 'even';
+let guestCount = 2;
+let guestPaid = {};
+let itemAssignments = {}; // "orderIdx-itemIdx" -> guest number (1-based)
+
+function billTotalAmount(){
+  return orders.reduce((s,o)=>s+o.total,0);
+}
+document.getElementById('billBtn').onclick = ()=>{
+  document.getElementById('billTotal').textContent = '$'+billTotalAmount();
+  renderSplitBody();
+  document.getElementById('billSheet').classList.add('active');
+};
+function closeBillSheet(){ document.getElementById('billSheet').classList.remove('active'); }
+function setSplitMode(mode){
+  splitMode = mode;
+  document.getElementById('tabEven').classList.toggle('active', mode==='even');
+  document.getElementById('tabItem').classList.toggle('active', mode==='item');
+  renderSplitBody();
+}
+function renderSplitBody(){
+  const body = document.getElementById('splitBody');
+  const total = billTotalAmount();
+  if(total===0){
+    body.innerHTML = '<div class="empty-review">No orders sent yet — nothing to split.</div>';
+    return;
+  }
+  if(splitMode==='even'){
+    const per = (total/guestCount).toFixed(2);
+    let guests = '';
+    for(let g=1; g<=guestCount; g++){
+      const paid = !!guestPaid[g];
+      guests += `<div class="guest-row">
+        <span class="gname">Guest ${g}</span>
+        <span style="display:flex;align-items:center;">
+          <span class="gamt">$${per}</span>
+          <button class="paid-btn ${paid?'paid':''}" onclick="toggleGuestPaid(${g})">${paid?'Paid ✓':'Mark paid'}</button>
+        </span>
+      </div>`;
+    }
+    body.innerHTML = `
+      ${guestSliderHTML()}
+      ${guests}`;
+  } else {
+    let rows = '';
+    orders.forEach((o,oi)=>{
+      o.items.forEach((it,ii)=>{
+        const key = oi+'-'+ii;
+        const g = itemAssignments[key] || 1;
+        rows += `<div class="item-assign-row">
+          <span class="iname">${it.qty}× ${it.name} <span style="color:var(--text-dim);">$${it.price*it.qty}</span></span>
+          <button class="assign-cycle" onclick="cycleAssign('${key}', ${guestCount})">Guest ${g}</button>
+        </div>`;
+      });
+    });
+    const totals = {};
+    orders.forEach((o,oi)=> o.items.forEach((it,ii)=>{
+      const key = oi+'-'+ii;
+      const g = itemAssignments[key] || 1;
+      totals[g] = (totals[g]||0) + it.price*it.qty;
+    }));
+    let guestTotals = '';
+    for(let g=1; g<=guestCount; g++){
+      const paid = !!guestPaid[g];
+      guestTotals += `<div class="guest-row">
+        <span class="gname">Guest ${g}</span>
+        <span style="display:flex;align-items:center;">
+          <span class="gamt">$${totals[g]||0}</span>
+          <button class="paid-btn ${paid?'paid':''}" onclick="toggleGuestPaid(${g})">${paid?'Paid ✓':'Mark paid'}</button>
+        </span>
+      </div>`;
+    }
+    body.innerHTML = `
+      ${guestSliderHTML()}
+      <p class="sub">Tap an item to move it to the next guest</p>
+      ${rows}
+      ${guestTotals}`;
+  }
+}
+function guestSliderHTML(){
+  return `
+    <div class="guest-slider-wrap">
+      <div class="guest-slider-head">
+        <span style="font-size:12.5px;color:var(--text-dim);">Number of guests</span>
+        <span class="gcount">${guestCount}</span>
+      </div>
+      <input type="range" class="guest-slider" min="2" max="10" step="1" value="${guestCount}"
+        oninput="setGuestCount(parseInt(this.value))">
+      <div class="guest-slider-ticks"><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span></div>
+    </div>`;
+}
+function setGuestCount(n){
+  guestCount = Math.max(2, Math.min(10, n));
+  renderSplitBody();
+}
+function cycleAssign(key, count){
+  const current = itemAssignments[key] || 1;
+  itemAssignments[key] = current>=count ? 1 : current+1;
+  renderSplitBody();
+}
+function toggleGuestPaid(g){
+  guestPaid[g] = !guestPaid[g];
+  renderSplitBody();
+}
+function closeConfirm(){
+  document.getElementById('confirm').classList.remove('active');
+  cart = {};
+  renderStrip();
+  renderAddZone();
+  updateOrderZone();
+}
+
+// tap the 3D model itself to launch AR (no dedicated button needed)
+viewer.addEventListener('click', ()=>{
+  if (typeof viewer.activateAR === 'function') {
+    viewer.activateAR();
+  }
+});
+
+// user has taken over rotating the model -> the hint has done its job
+viewer.addEventListener('camera-change', (e)=>{
+  if(e.detail && e.detail.source === 'user-interaction'){
+    rotateHint.classList.remove('show');
+    clearTimeout(window.__rotateTimer);
+  }
+});
+
+// init
+selectDish(0);
+updateOrderZone();
+</script>
+</body>
+</html>
