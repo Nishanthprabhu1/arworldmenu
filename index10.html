@@ -372,6 +372,47 @@
   .onboard-err{color:#F09595;font-size:11.5px;margin:-10px 0 12px;display:none;}
   .onboard-err.show{display:block;}
 
+  /* ---- idle resume lock (guards against stray taps after backgrounding) ---- */
+  #resumeLock{
+    position:fixed;inset:0;background:rgba(10,8,6,.9);
+    display:none;align-items:center;justify-content:center;z-index:95;padding:20px;
+  }
+  #resumeLock.active{display:flex;}
+  .resume-card{
+    background:var(--ink-soft);border:1px solid var(--line);
+    border-radius:20px;padding:26px 22px;max-width:340px;width:100%;text-align:center;
+  }
+  .resume-card .g-avatar{margin:0 auto 14px;width:44px;height:44px;font-size:16px;}
+  .resume-card h3{margin:0 0 6px;font-size:17px;}
+  .resume-card p{color:var(--text-dim);font-size:12.5px;margin:0 0 20px;line-height:1.5;}
+  .resume-btn{
+    width:100%;padding:14px;border-radius:14px;border:none;
+    background:var(--ember);color:#1A0E06;font-weight:700;
+    font-family:'Space Grotesk',sans-serif;font-size:14px;cursor:pointer;margin-bottom:10px;
+  }
+  .resume-leave-btn{
+    width:100%;background:none;border:none;color:var(--text-dim);
+    font-size:11.5px;cursor:pointer;padding:6px;
+  }
+
+  /* ---- send-to-kitchen undo toast ---- */
+  .send-toast{
+    position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));
+    transform:translateX(-50%);
+    background:var(--ink-soft2);border:1px solid var(--gold);
+    border-radius:16px;padding:12px 14px 12px 16px;
+    display:none;align-items:center;gap:12px;z-index:85;
+    box-shadow:0 8px 24px rgba(0,0,0,.4);
+  }
+  .send-toast.active{display:flex;}
+  .send-toast .st-text{font-size:12.5px;}
+  .send-toast .st-sub{font-size:10.5px;color:var(--text-dim);}
+  .send-toast .st-undo{
+    background:var(--gold);color:#1A0E06;border:none;border-radius:10px;
+    padding:8px 14px;font-weight:700;font-size:12px;cursor:pointer;
+    font-family:'Space Grotesk',sans-serif;white-space:nowrap;
+  }
+
   /* ---- review sheet ---- */
   #reviewSheet{
     position:fixed;inset:0;background:rgba(10,8,6,.6);
@@ -554,6 +595,55 @@
     font-family:'Space Grotesk',sans-serif;font-weight:700;
     padding:11px 22px;border-radius:12px;cursor:pointer;
   }
+
+  /* ---- staff dashboard (?staff=1) ---- */
+  body.staff-mode #app,
+  body.staff-mode #onboardOverlay,
+  body.staff-mode #resumeLock,
+  body.staff-mode #closedScreen{display:none !important;}
+  #staffPanel{display:none;height:100vh;height:100dvh;overflow-y:auto;padding:22px 16px calc(22px + env(safe-area-inset-bottom,0px));}
+  body.staff-mode #staffPanel{display:block;}
+  .staff-wrap{max-width:420px;margin:0 auto;}
+  .staff-wrap h2{font-size:18px;margin:0 0 4px;}
+  .staff-status{font-size:12.5px;color:var(--gold);margin-bottom:20px;}
+  .staff-section{margin-bottom:20px;}
+  .staff-section h4{font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;font-family:'Inter',sans-serif;}
+  .staff-guest-row{
+    display:flex;align-items:center;gap:10px;
+    padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;
+  }
+  .staff-guest-row .g-avatar{width:26px;height:26px;font-size:11px;margin-left:0;}
+  .staff-guest-row .sgn{flex:1;}
+  .staff-guest-row .sg-dot{width:7px;height:7px;border-radius:50%;background:var(--text-dim);flex:0 0 auto;}
+  .staff-guest-row .sg-dot.online{background:#5BC98C;}
+  .staff-guest-row .sg-status{font-size:10.5px;color:var(--text-dim);width:60px;text-align:right;}
+  .staff-guest-row .sg-amt{font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--gold);}
+  .staff-bill-total{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:24px;color:var(--gold);margin-bottom:10px;}
+  .staff-btn{
+    width:100%;padding:14px;border-radius:14px;border:1px solid var(--line);
+    background:var(--ink-soft2);color:var(--paper);font-weight:700;
+    font-family:'Space Grotesk',sans-serif;font-size:13.5px;cursor:pointer;margin-bottom:10px;
+  }
+  .staff-btn.primary{background:var(--ember);color:#1A0E06;border:none;}
+  .staff-btn:disabled{opacity:.35;cursor:not-allowed;}
+  .staff-note{font-size:11px;color:var(--text-dim);line-height:1.5;margin-top:4px;}
+
+  /* ---- closed / thanks screen ---- */
+  #closedScreen{
+    position:fixed;inset:0;background:var(--ink);
+    display:none;align-items:center;justify-content:center;z-index:100;padding:24px;
+  }
+  #closedScreen.active{display:flex;}
+  .closed-card{text-align:center;max-width:320px;}
+  .closed-card .closed-check{
+    width:64px;height:64px;border-radius:50%;
+    background:rgba(212,175,55,.12);border:1px solid rgba(212,175,55,.4);
+    color:var(--gold);font-size:28px;
+    display:flex;align-items:center;justify-content:center;
+    margin:0 auto 18px;
+  }
+  .closed-card h2{font-size:20px;margin:0 0 8px;}
+  .closed-card p{color:var(--text-dim);font-size:13px;line-height:1.5;margin:0;}
 </style>
 </head>
 <body>
@@ -570,6 +660,36 @@
     <div class="onboard-err" id="onbPhoneErr">Please enter a valid mobile number</div>
     <button class="onboard-join-btn" id="onbJoinBtn">Join table</button>
   </div>
+</div>
+
+<!-- Shown after the tab has been backgrounded/idle for a while, so a stray tap
+     from someone who isn't the guest can't silently add to the table bill. -->
+<div id="resumeLock">
+  <div class="resume-card">
+    <div class="g-avatar" id="resumeAvatar"></div>
+    <h3 id="resumeTitle">Still ordering?</h3>
+    <p id="resumeSub">Confirm you're continuing as this guest at this table before we show the menu again.</p>
+    <button class="resume-btn" id="resumeContinueBtn">Yes, continue ordering</button>
+    <button class="resume-leave-btn" id="resumeLeaveBtn">Not me — start over</button>
+  </div>
+</div>
+
+<!-- Shown the instant staff mark the bill paid / close the table. Locks the
+     phone out of the menu completely — no more silent adds are possible. -->
+<div id="closedScreen">
+  <div class="closed-card">
+    <div class="closed-check">✓</div>
+    <h2>Thanks for dining with us!</h2>
+    <p>Your table has been closed out. This link is done for this visit — see you again soon.</p>
+  </div>
+</div>
+
+<div class="send-toast" id="sendToast">
+  <div>
+    <div class="st-text">Sending to kitchen<span id="sendToastCount"></span>…</div>
+    <div class="st-sub" id="sendToastTimer">in 8s</div>
+  </div>
+  <button class="st-undo" id="sendToastUndo">Undo</button>
 </div>
 
 <div id="app">
@@ -736,19 +856,43 @@
   </div>
 </div>
 
+<!-- Staff dashboard: open this same file with ?table=12&staff=1 on the
+     till/POS device. Real deployment: gate this behind staff login, don't
+     rely on the URL param alone. -->
+<div id="staffPanel">
+  <div class="staff-wrap">
+    <h2>Table <span id="staffTableNo">12</span> — staff view</h2>
+    <div class="staff-status" id="staffStatusLine">Session open</div>
+
+    <div class="staff-section">
+      <h4>Guests at this table</h4>
+      <div id="staffGuestList"></div>
+    </div>
+
+    <div class="staff-section">
+      <h4>Bill (items sent to kitchen)</h4>
+      <div class="staff-bill-total" id="staffBillTotal">$0</div>
+      <div id="staffBillLines"></div>
+    </div>
+
+    <button class="staff-btn primary" id="staffCloseBtn">Mark bill paid &amp; close table</button>
+    <button class="staff-btn" id="staffNewBtn" disabled>Start next seating</button>
+    <p class="staff-note">Closing locks every connected phone out immediately and settles the split. Starting the next seating gives Table <span id="staffTableNo2">12</span> a brand-new session — no guest, cart, or bill carries over.</p>
+  </div>
+</div>
+
 <script>
 /* ============================================================
    DEMO-ONLY SYNC LAYER
    ------------------------------------------------------------
    Real cross-phone sync needs a backend (Firestore, Supabase
-   Realtime, or your own WebSocket/API) keyed by table_id, where
-   every guest device reads/writes the same table document.
-
+   Realtime, or your own WebSocket/API) keyed by session_id.
    This file simulates that with BroadcastChannel + localStorage,
    which only sync across browser TABS ON THE SAME DEVICE — good
    enough to test the UX (open this file in 3-4 tabs and pretend
-   each tab is a different guest's phone), but NOT a substitute
-   for a real backend in production.
+   each tab is a different guest's phone, plus one tab with
+   ?staff=1 for the till), but NOT a substitute for a real
+   backend in production.
 
    Every place marked SYNC POINT below is where you'd swap in a
    real backend call (e.g. Firestore's onSnapshot / set()).
@@ -756,26 +900,74 @@
 
 const params = new URLSearchParams(location.search);
 const TABLE_ID = params.get('table') || '12';
-const LS_GUESTS = 'table_' + TABLE_ID + '_guests';
-const LS_CART   = 'table_' + TABLE_ID + '_cart';
-const LS_ME     = 'table_' + TABLE_ID + '_me';
-const LS_PAID   = 'table_' + TABLE_ID + '_paid';
-const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('table_' + TABLE_ID) : null;
+const IS_STAFF = params.get('staff') === '1';
+
+/* ------------------------------------------------------------
+   SESSION LAYER
+   A "table" (the QR code / TABLE_ID) is a fixed physical spot.
+   A "session" is one seating at that table, from the first guest
+   joining to staff closing it after the bill is paid. All guest,
+   cart, order and paid data below lives under the SESSION id —
+   never under the bare TABLE_ID — so once staff closes a session
+   and starts the next one, nothing carries over: no guest, no
+   cart, no bill, no connection back to the old seating. A tab
+   that reloads after that lands on the new session as a
+   brand-new guest automatically.
+
+   SYNC POINT: in production the pointer + session doc live in
+   your backend (e.g. a `sessions` collection keyed by table_id
+   holding {currentSessionId}), not localStorage.
+------------------------------------------------------------ */
+const PTR_KEY = 'table_' + TABLE_ID + '_session_ptr';
+
+function newSessionId(){ return 'sess' + Date.now() + Math.floor(Math.random()*1000); }
+
+function ensureSession(){
+  let sid = localStorage.getItem(PTR_KEY);
+  if(!sid){
+    sid = newSessionId();
+    localStorage.setItem(PTR_KEY, sid);
+    localStorage.setItem('session_'+sid+'_status', JSON.stringify({state:'open', openedAt:Date.now()}));
+  }
+  return sid;
+}
+
+let SESSION_ID = ensureSession();
+function sKey(suffix){ return 'session_' + SESSION_ID + '_' + suffix; }
+
+const LS_ME = sKey('me'); // guest identity is scoped to THIS session on purpose
+
+function loadStatus(){ try{ return JSON.parse(localStorage.getItem(sKey('status'))||'{"state":"open"}'); }catch(e){ return {state:'open'}; } }
+function saveStatus(s){ localStorage.setItem(sKey('status'), JSON.stringify(s)); } // SYNC POINT
+
+function loadGuests(){ try{ return JSON.parse(localStorage.getItem(sKey('guests'))||'{}'); }catch(e){ return {}; } }
+function saveGuests(g){ localStorage.setItem(sKey('guests'), JSON.stringify(g)); } // SYNC POINT
+function loadCart(){ try{ return JSON.parse(localStorage.getItem(sKey('cart'))||'{}'); }catch(e){ return {}; } }
+function saveCart(c){ localStorage.setItem(sKey('cart'), JSON.stringify(c)); markActivity(); } // SYNC POINT
+function loadPaid(){ try{ return JSON.parse(localStorage.getItem(sKey('paid'))||'{}'); }catch(e){ return {}; } }
+function savePaid(p){ localStorage.setItem(sKey('paid'), JSON.stringify(p)); }
+function loadOrders(){ try{ return JSON.parse(localStorage.getItem(sKey('orders'))||'[]'); }catch(e){ return []; } }
+function saveOrders(o){ localStorage.setItem(sKey('orders'), JSON.stringify(o)); markActivity(); } // SYNC POINT
+
+function markActivity(){ localStorage.setItem(sKey('lastActivity'), String(Date.now())); }
+function lastActivity(){ return Number(localStorage.getItem(sKey('lastActivity'))||Date.now()); }
 
 const GUEST_COLORS = ['#FF7A45','#D4AF37','#4EA8DE','#8B7FE8','#E85D9E','#5BC98C','#F2A93B','#59C7C7'];
 
-function loadGuests(){ try{ return JSON.parse(localStorage.getItem(LS_GUESTS)||'{}'); }catch(e){ return {}; } }
-function saveGuests(g){ localStorage.setItem(LS_GUESTS, JSON.stringify(g)); } // SYNC POINT: write to backend table doc
-function loadCart(){ try{ return JSON.parse(localStorage.getItem(LS_CART)||'{}'); }catch(e){ return {}; } }
-function saveCart(c){ localStorage.setItem(LS_CART, JSON.stringify(c)); }     // SYNC POINT: write to backend table doc
-function loadPaid(){ try{ return JSON.parse(localStorage.getItem(LS_PAID)||'{}'); }catch(e){ return {}; } }
-function savePaid(p){ localStorage.setItem(LS_PAID, JSON.stringify(p)); }
+/* Table-wide bus: session lifecycle events (closed/started) must reach
+   every tab pointed at this table, regardless of which session they're
+   currently on — that's how a lingering guest tab learns its session
+   just got closed. Session-scoped events (cart/guests/orders/paid) also
+   travel on it but are tagged with sessionId and ignored by any tab
+   whose SESSION_ID doesn't match. */
+const bus = ('BroadcastChannel' in window) ? new BroadcastChannel('table_' + TABLE_ID + '_bus') : null;
+function broadcast(type, extra){ if(bus) bus.postMessage(Object.assign({type, sessionId:SESSION_ID}, extra||{})); } // SYNC POINT: backend push / onSnapshot fires this instead
 
-function broadcast(type){ if(bc) bc.postMessage({type}); } // SYNC POINT: backend push / onSnapshot fires this instead
-
-let guests = loadGuests();     // { guestId: {id,name,phone,color,initials} }
-let cart = loadCart();         // { dishId: { total, byGuest: { guestId: qty } } }
-let paid = loadPaid();         // { guestId: true }
+let guests = loadGuests();       // { guestId: {id,name,phone,color,initials} }
+let cart = loadCart();           // { dishId: { total, byGuest: { guestId: qty } } }
+let paid = loadPaid();           // { guestId: true }
+let orders = loadOrders();
+let sessionStatus = loadStatus();// { state:'open'|'closed', ... }
 let meId = localStorage.getItem(LS_ME);
 
 function me(){ return guests[meId]; }
@@ -831,20 +1023,37 @@ function renderGuestRoster(){
   ).join('') + (list.length>4 ? `<div class="g-more">+${list.length-4}</div>` : '');
 }
 
-// react to other tabs/guests joining or updating the cart
-if(bc){
-  bc.onmessage = (e)=>{
-    if(e.data?.type==='guests'){ guests = loadGuests(); renderGuestRoster(); renderReview(); renderSplitBody?.(); }
-    if(e.data?.type==='cart'){ cart = loadCart(); renderStrip(); renderAddZone(); updateOrderZone(); renderReview(); }
-    if(e.data?.type==='paid'){ paid = loadPaid(); renderSplitBody?.(); }
-    if(e.data?.type==='order'){ orders = loadOrders(); if(orders.length) updateStatusChip(orders[orders.length-1]); if(document.getElementById('statusSheet').classList.contains('active')) renderStatusSheet(); }
+// react to other tabs/guests joining, cart updates, and session lifecycle
+if(bus){
+  bus.onmessage = (e)=>{
+    const msg = e.data || {};
+    if(msg.type==='session_closed'){
+      if(msg.sessionId === SESSION_ID) lockSessionClosed(msg.reason);
+      if(IS_STAFF) refreshStaffPanel();
+      return;
+    }
+    if(msg.type==='session_started'){
+      // Only relevant to a staff tab watching this table; a lingering guest
+      // tab on the old (already-closed) session doesn't need to react —
+      // it's either already locked, or will pick up the fresh session next
+      // time it loads the page.
+      if(IS_STAFF) refreshStaffPanel();
+      return;
+    }
+    if(msg.sessionId !== SESSION_ID) return; // event belongs to a different session — ignore
+    if(msg.type==='guests'){ guests = loadGuests(); renderGuestRoster(); renderReview(); renderSplitBody?.(); if(IS_STAFF) refreshStaffPanel(); }
+    if(msg.type==='cart'){ cart = loadCart(); renderStrip(); renderAddZone(); updateOrderZone(); renderReview(); if(IS_STAFF) refreshStaffPanel(); }
+    if(msg.type==='paid'){ paid = loadPaid(); renderSplitBody?.(); if(IS_STAFF) refreshStaffPanel(); }
+    if(msg.type==='order'){ orders = loadOrders(); if(orders.length) updateStatusChip(orders[orders.length-1]); if(document.getElementById('statusSheet').classList.contains('active')) renderStatusSheet(); if(IS_STAFF) refreshStaffPanel(); }
   };
 }
 window.addEventListener('storage', (e)=>{
   // fallback for browsers/contexts without BroadcastChannel
-  if(e.key===LS_GUESTS){ guests = loadGuests(); renderGuestRoster(); renderReview(); }
-  if(e.key===LS_CART){ cart = loadCart(); renderStrip(); renderAddZone(); updateOrderZone(); renderReview(); }
-  if(e.key===LS_PAID){ paid = loadPaid(); }
+  if(!e.key) return;
+  if(e.key===sKey('guests')){ guests = loadGuests(); renderGuestRoster(); renderReview(); }
+  if(e.key===sKey('cart')){ cart = loadCart(); renderStrip(); renderAddZone(); updateOrderZone(); renderReview(); }
+  if(e.key===sKey('paid')){ paid = loadPaid(); }
+  if(e.key===sKey('status')){ sessionStatus = loadStatus(); if(sessionStatus.state==='closed' && !IS_STAFF) lockSessionClosed(sessionStatus.reason); }
 });
 
 const demoModel = "https://modelviewer.dev/shared-assets/models/Astronaut.glb";
@@ -878,9 +1087,6 @@ const statusChipText = document.getElementById('statusChipText');
 const toastEl = document.getElementById('toast');
 const tableNoText = ()=> document.getElementById('tableNo').textContent;
 
-function loadOrders(){ try{ return JSON.parse(localStorage.getItem('table_'+TABLE_ID+'_orders')||'[]'); }catch(e){ return []; } }
-function saveOrders(o){ localStorage.setItem('table_'+TABLE_ID+'_orders', JSON.stringify(o)); } // SYNC POINT
-let orders = loadOrders();
 const STAGES = ['Received','Preparing','Plating','On its way'];
 
 // ---- cart helpers: cart[dishId] = { total, byGuest:{guestId:qty} } ----
@@ -1045,27 +1251,64 @@ function closeReview(){
   document.getElementById('reviewSheet').classList.remove('active');
 }
 
+// ---- send-to-kitchen with a short undo window, so a mis-tap on "Confirm
+// order" doesn't become a real kitchen ticket / real charge instantly ----
+const SEND_UNDO_MS = 8000;
+let pendingSend = null; // { items, total, count, timer, secondsLeft }
+
 document.getElementById('confirmOrderBtn').onclick = ()=>{
   if(Object.keys(cart).length===0) return;
-  const orderNo = Math.floor(1000+Math.random()*9000);
   const items = Object.keys(cart).map(dishId=>{
     const d = dishes.find(x=>x.id==dishId);
     return {name:d.name, price:d.price, qty:cart[dishId].total, byGuest:{...cart[dishId].byGuest}};
   });
   const total = items.reduce((s,i)=>s+i.price*i.qty,0);
   const count = items.reduce((s,i)=>s+i.qty,0);
-
-  const order = {no:orderNo, items, total, stage:0, placedAt:Date.now()};
-  orders.push(order);
-  saveOrders(orders);
-  broadcast('order');
-  startStatusSimulation(order);
-
-  document.getElementById('orderSummary').textContent =
-    `Order #${orderNo} · ${count} item${count>1?'s':''} · Table ${tableNoText()}`;
   closeReview();
-  document.getElementById('confirm').classList.add('active');
+  startSendCountdown(items, total, count);
 };
+
+function startSendCountdown(items, total, count){
+  const toast = document.getElementById('sendToast');
+  const timerEl = document.getElementById('sendToastTimer');
+  const countEl = document.getElementById('sendToastCount');
+  countEl.textContent = ` · ${count} item${count>1?'s':''} · $${total}`;
+  let secondsLeft = Math.ceil(SEND_UNDO_MS/1000);
+  timerEl.textContent = `in ${secondsLeft}s — tap Undo if that was a mistake`;
+  toast.classList.add('active');
+
+  const tick = setInterval(()=>{
+    secondsLeft--;
+    if(secondsLeft<=0){ clearInterval(tick); return; }
+    timerEl.textContent = `in ${secondsLeft}s — tap Undo if that was a mistake`;
+  }, 1000);
+
+  const finalize = ()=>{
+    clearInterval(tick);
+    toast.classList.remove('active');
+    pendingSend = null;
+    const orderNo = Math.floor(1000+Math.random()*9000);
+    const order = {no:orderNo, items, total, stage:0, placedAt:Date.now()};
+    orders.push(order);
+    saveOrders(orders);
+    broadcast('order');
+    startStatusSimulation(order);
+    document.getElementById('orderSummary').textContent =
+      `Order #${orderNo} · ${count} item${count>1?'s':''} · Table ${tableNoText()}`;
+    document.getElementById('confirm').classList.add('active');
+  };
+
+  const timer = setTimeout(finalize, SEND_UNDO_MS);
+  pendingSend = { items, total, count, timer, tick };
+
+  document.getElementById('sendToastUndo').onclick = ()=>{
+    clearTimeout(pendingSend.timer);
+    clearInterval(pendingSend.tick);
+    pendingSend = null;
+    toast.classList.remove('active');
+    showToast('Send cancelled — items are still in your cart', false);
+  };
+}
 
 // ---- live order status (demo simulation; wire to your KDS/POS webhook in production) ----
 function startStatusSimulation(order){
@@ -1222,7 +1465,7 @@ function closeSelfie(){
   selfieBody.innerHTML = '<div class="selfie-loading">Capturing…</div>';
 }
 
-// ---- in-app bill split (now driven by the real joined guests + who-ordered-what) ----
+// ---- in-app bill split (driven by the real joined guests + who-ordered-what) ----
 let splitMode = 'even';
 
 function billTotalAmount(){
@@ -1302,6 +1545,150 @@ function closeConfirm(){
   updateOrderZone();
 }
 
+/* ============================================================
+   SESSION LIFECYCLE
+   Staff-triggered close on the backend, not geofencing: location
+   permission gets denied a lot, indoor GPS drifts, and a guest
+   stepping out for a call would get bounced mid-meal. Instead:
+     - staff marks the bill paid -> this session closes and every
+       connected phone locks out immediately (functionally, not
+       just visually — the menu is gone and can't be re-added to)
+     - staff starts the next seating -> a brand-new session_id is
+       minted for TABLE_ID; nothing from the old one carries over
+     - a 3-hour no-activity safety net auto-closes an unpaid table
+       in case staff forgets to tap the button
+   ============================================================ */
+const AUTO_CLOSE_MS = 3*60*60*1000; // safety net only — staff closing is the primary control
+
+function closeSession(reason){
+  const gs = loadGuests();
+  const p = loadPaid();
+  Object.keys(gs).forEach(gid=> p[gid]=true); // bill paid -> everyone's split is settled
+  savePaid(p);
+  sessionStatus = {state:'closed', closedAt:Date.now(), reason: reason||'staff'};
+  saveStatus(sessionStatus);
+  clearTimeout(window.__statusTimer);
+  broadcast('paid');
+  broadcast('session_closed', {reason: sessionStatus.reason});
+  if(!IS_STAFF) lockSessionClosed(sessionStatus.reason);
+  if(IS_STAFF) refreshStaffPanel();
+}
+
+function startNewSeating(){
+  const sid = newSessionId();
+  localStorage.setItem(PTR_KEY, sid);
+  localStorage.setItem('session_'+sid+'_status', JSON.stringify({state:'open', openedAt:Date.now()}));
+  broadcast('session_started');
+  if(IS_STAFF){
+    SESSION_ID = sid;
+    guests = {}; cart = {}; paid = {}; orders = [];
+    sessionStatus = {state:'open', openedAt:Date.now()};
+    refreshStaffPanel();
+  }
+}
+
+function lockSessionClosed(reason){
+  clearTimeout(window.__statusTimer);
+  if(pendingSend){ clearTimeout(pendingSend.timer); clearInterval(pendingSend.tick); pendingSend=null; }
+  ['reviewSheet','sendToast','confirm','bellSheet','statusSheet','selfieModal','billSheet','onboardOverlay','resumeLock'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.classList.remove('active');
+  });
+  const appEl = document.getElementById('app');
+  if(appEl) appEl.style.display = 'none';
+  document.getElementById('closedScreen').classList.add('active');
+}
+
+// ---- presence (nice-to-have: lets staff see who's still connected) ----
+function loadPresence(){ try{ return JSON.parse(localStorage.getItem(sKey('presence'))||'{}'); }catch(e){ return {}; } }
+function savePresence(p){ localStorage.setItem(sKey('presence'), JSON.stringify(p)); }
+function startHeartbeat(){
+  const tick = ()=>{
+    if(!meId) return;
+    const p = loadPresence();
+    p[meId] = Date.now();
+    savePresence(p);
+  };
+  tick();
+  setInterval(tick, 15000);
+}
+
+// ---- inactivity safety net ----
+function startAutoCloseWatcher(){
+  setInterval(()=>{
+    const st = loadStatus();
+    if(st.state!=='open') return;
+    const ordersNow = loadOrders();
+    if(ordersNow.length===0) return; // nothing billed yet — nothing to protect
+    if(Date.now() - lastActivity() > AUTO_CLOSE_MS){
+      closeSession('auto-timeout');
+    }
+  }, 60000);
+}
+
+// ---- staff dashboard ----
+function refreshStaffPanel(){
+  guests = loadGuests();
+  orders = loadOrders();
+  paid = loadPaid();
+  sessionStatus = loadStatus();
+  const presence = loadPresence();
+
+  const closed = sessionStatus.state==='closed';
+  document.getElementById('staffStatusLine').textContent = closed
+    ? `Session closed${sessionStatus.reason==='auto-timeout' ? ' (auto-closed, inactivity)' : ''} — ready to start the next seating`
+    : 'Session open';
+  document.getElementById('staffCloseBtn').disabled = closed || orders.length===0;
+  document.getElementById('staffNewBtn').disabled = !closed;
+
+  const guestIds = Object.keys(guests);
+  const now = Date.now();
+  document.getElementById('staffGuestList').innerHTML = guestIds.length
+    ? guestIds.map(gid=>{
+        const g = guests[gid];
+        const online = presence[gid] && (now - presence[gid] < 40000);
+        return `<div class="staff-guest-row">
+          <span class="g-avatar" style="background:${g.color}">${g.initials}</span>
+          <span class="sgn">${g.name}</span>
+          <span class="sg-dot ${online?'online':''}"></span>
+          <span class="sg-status">${online?'connected':'inactive'}</span>
+        </div>`;
+      }).join('')
+    : '<div class="empty-review">No guests have joined yet.</div>';
+
+  const totals = {};
+  orders.forEach(o=> o.items.forEach(it=>{
+    Object.keys(it.byGuest||{}).forEach(gid=>{
+      const qty = it.byGuest[gid]; if(qty<=0) return;
+      totals[gid] = (totals[gid]||0) + it.price*qty;
+    });
+  }));
+  const grand = Object.values(totals).reduce((s,n)=>s+n,0);
+  document.getElementById('staffBillTotal').textContent = '$'+grand;
+  document.getElementById('staffBillLines').innerHTML = Object.keys(totals).length
+    ? Object.keys(totals).map(gid=>{
+        const g = guests[gid]||{name:'Guest',color:'#888',initials:'G'};
+        const isPaid = !!paid[gid];
+        return `<div class="staff-guest-row"><span class="g-avatar" style="background:${g.color}">${g.initials}</span><span class="sgn">${g.name}</span><span class="sg-amt">$${totals[gid]}${isPaid?' · settled':''}</span></div>`;
+      }).join('')
+    : '<div class="empty-review">No items sent to the kitchen yet.</div>';
+}
+
+function initStaffPanel(){
+  document.getElementById('staffTableNo').textContent = TABLE_ID;
+  document.getElementById('staffTableNo2').textContent = TABLE_ID;
+  refreshStaffPanel();
+  document.getElementById('staffCloseBtn').onclick = ()=>{
+    if(document.getElementById('staffCloseBtn').disabled) return;
+    closeSession('staff');
+  };
+  document.getElementById('staffNewBtn').onclick = ()=>{
+    if(document.getElementById('staffNewBtn').disabled) return;
+    startNewSeating();
+  };
+  setInterval(refreshStaffPanel, 4000);
+}
+
 // tap the 3D model itself to launch AR (no dedicated button needed)
 viewer.addEventListener('click', ()=>{
   if (typeof viewer.activateAR === 'function') {
@@ -1317,13 +1704,76 @@ viewer.addEventListener('camera-change', (e)=>{
   }
 });
 
+// ---- idle / backgrounded resume lock ----
+// Guards against exactly the "went back to home screen, someone else pokes
+// the phone" case: after the page has been hidden or untouched for a while,
+// the next interaction shows a re-confirm screen instead of going straight
+// back to a live Add/Send button.
+const IDLE_LIMIT_MS = 3 * 60 * 1000; // 3 minutes
+const resumeLock = document.getElementById('resumeLock');
+let lastActiveAt = Date.now();
+let hiddenAt = null;
+
+function markActive(){ lastActiveAt = Date.now(); }
+['pointerdown','click','touchstart'].forEach(evt=>
+  document.addEventListener(evt, ()=>{ if(!resumeLock.classList.contains('active')) markActive(); }, {passive:true})
+);
+
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden){
+    hiddenAt = Date.now();
+  } else if(hiddenAt && (Date.now()-hiddenAt) > IDLE_LIMIT_MS){
+    showResumeLock();
+  }
+  hiddenAt = document.hidden ? Date.now() : null;
+});
+
+setInterval(()=>{
+  if(!resumeLock.classList.contains('active') && !document.hidden &&
+     (Date.now()-lastActiveAt) > IDLE_LIMIT_MS && meId && guests[meId]){
+    showResumeLock();
+  }
+}, 15000);
+
+function showResumeLock(){
+  if(!meId || !guests[meId]) return; // nobody onboarded yet, nothing to protect
+  const g = guests[meId];
+  document.getElementById('resumeAvatar').style.background = g.color;
+  document.getElementById('resumeAvatar').textContent = g.initials;
+  document.getElementById('resumeTitle').textContent = `Still there, ${g.name}?`;
+  document.getElementById('resumeSub').textContent =
+    `Confirm you're continuing as ${g.name} at Table ${tableNoText()} — this keeps stray taps from being added to the table's bill.`;
+  resumeLock.classList.add('active');
+}
+document.getElementById('resumeContinueBtn').onclick = ()=>{
+  resumeLock.classList.remove('active');
+  markActive();
+};
+document.getElementById('resumeLeaveBtn').onclick = ()=>{
+  // Leaves this guest identity; table session + everyone else's items are untouched.
+  localStorage.removeItem(LS_ME);
+  meId = null;
+  resumeLock.classList.remove('active');
+  showOnboardingIfNeeded();
+};
+
 // init
-showOnboardingIfNeeded();
-renderGuestRoster();
-selectDish(0);
-renderAddZone();
-updateOrderZone();
-if(orders.length) updateStatusChip(orders[orders.length-1]);
+document.body.classList.toggle('staff-mode', IS_STAFF);
+
+if(IS_STAFF){
+  initStaffPanel();
+} else if(sessionStatus.state==='closed'){
+  lockSessionClosed(sessionStatus.reason);
+} else {
+  showOnboardingIfNeeded();
+  renderGuestRoster();
+  selectDish(0);
+  renderAddZone();
+  updateOrderZone();
+  if(orders.length) updateStatusChip(orders[orders.length-1]);
+}
+startHeartbeat();
+startAutoCloseWatcher();
 </script>
 </body>
-</html> 
+</html>
