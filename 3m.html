@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>The Spice Bistro — Floor Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#14110F;
+    --panel:#1D1916;
+    --panel2:#26211C;
+    --paper:#F4EFE6;
+    --dim:#B7AFA2;
+    --faint:#7E776C;
+    --ember:#FF7A45;
+    --gold:#D4AF37;
+    --line:rgba(244,239,230,.12);
+    --queued:#22b8cf;
+    --cooking:#f59e0b;
+    --ready:#10b981;
+    --served:#8ea2c0;
+    --danger:#ef6461;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;min-height:100%;}
+  body{
+    background:var(--ink);color:var(--paper);
+    font-family:'Plus Jakarta Sans',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);
+  }
+  button{font-family:inherit;cursor:pointer;}
+  button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+  .num{font-variant-numeric:tabular-nums;}
+
+  header.top{
+    display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;
+    padding:14px 22px;border-bottom:1px solid var(--line);
+    position:sticky;top:0;background:rgba(20,17,15,.94);backdrop-filter:blur(8px);z-index:20;
+  }
+  .brand{display:flex;align-items:center;gap:12px;}
+  .logo{
+    width:40px;height:40px;border-radius:11px;display:grid;place-items:center;
+    font-family:'Bebas Neue',sans-serif;font-size:23px;letter-spacing:.06em;color:#FBE7B0;
+    background:linear-gradient(140deg,#a8641c,#5b3410);border:1px solid rgba(212,175,55,.45);
+  }
+  .brand h1{margin:0;font-size:16px;font-weight:700;letter-spacing:.01em;}
+  .brand p{margin:2px 0 0;font-size:11.5px;color:var(--dim);display:flex;align-items:center;gap:7px;}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--ready);animation:pulse 2s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(16,185,129,.55);}70%{box-shadow:0 0 0 7px rgba(16,185,129,0);}100%{box-shadow:0 0 0 0 rgba(16,185,129,0);}}
+
+  .actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+  .ghost-btn{
+    padding:9px 14px;border-radius:11px;border:1px solid var(--line);background:var(--panel);
+    color:var(--paper);font-size:12.5px;font-weight:600;
+  }
+  .ghost-btn:hover{border-color:rgba(244,239,230,.3);}
+  .ghost-btn.off{color:var(--faint);}
+  .clock{font-variant-numeric:tabular-nums;font-weight:700;color:var(--gold);font-size:14px;padding:0 6px;min-width:74px;text-align:right;}
+
+  .summary{
+    display:flex;flex-wrap:wrap;gap:0;padding:6px 22px;border-bottom:1px solid var(--line);background:var(--panel);
+  }
+  .fig{padding:12px 26px 12px 0;margin-right:26px;border-right:1px solid var(--line);min-width:120px;}
+  .fig:last-child{border-right:none;}
+  .fig .v{font-size:24px;font-weight:800;letter-spacing:-.01em;}
+  .fig .v small{font-size:14px;color:var(--faint);font-weight:600;}
+  .fig .l{font-size:12px;color:var(--dim);margin-top:2px;}
+  .fig.gold .v{color:var(--gold);}
+
+  .filters{display:flex;flex-wrap:wrap;gap:8px;padding:16px 22px 4px;align-items:center;}
+  .chip{
+    padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;
+    color:var(--dim);font-size:12.5px;font-weight:600;
+  }
+  .chip b{margin-left:6px;color:var(--faint);font-weight:700;}
+  .chip.active{background:var(--paper);color:var(--ink);border-color:var(--paper);}
+  .chip.active b{color:#5a5347;}
+  .legend{margin-left:auto;display:flex;flex-wrap:wrap;gap:14px;font-size:11.5px;color:var(--dim);}
+  .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:baseline;}
+
+  #floor{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;
+    padding:14px 22px 60px;
+  }
+  .tile{
+    --st:var(--line);
+    position:relative;display:flex;flex-direction:column;min-height:262px;
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  }
+  .tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--st);}
+  .tile.s-seated{--st:var(--faint);}
+  .tile.s-queued{--st:var(--queued);}
+  .tile.s-cooking{--st:var(--cooking);}
+  .tile.s-ready{--st:var(--ready);}
+  .tile.s-dining{--st:var(--served);}
+  .tile.s-billed{--st:var(--gold);border-color:rgba(212,175,55,.5);}
+  .tile.s-vacant{background:transparent;border-style:dashed;justify-content:space-between;}
+  .tile.has-alert{border-color:rgba(255,122,69,.6);}
+  .tile.flash{animation:tileFlash 1.1s ease-out;}
+  @keyframes tileFlash{0%{box-shadow:0 0 0 0 rgba(255,122,69,.7);}100%{box-shadow:0 0 0 14px rgba(255,122,69,0);}}
+
+  .t-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 14px 8px 20px;}
+  .t-no{font-family:'Bebas Neue',sans-serif;font-size:38px;line-height:1;letter-spacing:.03em;}
+  .s-vacant .t-no{color:var(--faint);}
+  .t-side{text-align:right;min-width:0;}
+  .badge{
+    display:inline-block;padding:4px 10px;border-radius:999px;font-size:11.5px;font-weight:700;
+    background:color-mix(in srgb,var(--st) 20%,transparent);color:var(--st);
+  }
+  .s-seated .badge{color:var(--dim);}
+  .who{font-size:11.5px;color:var(--dim);margin-top:5px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:auto;}
+
+  .alerts{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 6px 20px;}
+  .alert-chip{
+    border:1px solid rgba(255,122,69,.55);background:rgba(255,122,69,.12);color:#ffb08f;
+    border-radius:999px;padding:4px 9px;font-size:11px;font-weight:600;
+  }
+  .alert-chip:hover{background:rgba(255,122,69,.25);}
+  .alert-chip.bill{border-color:rgba(212,175,55,.7);background:rgba(212,175,55,.14);color:var(--gold);}
+
+  .dishes{list-style:none;margin:0;padding:4px 14px 6px 20px;flex:1;overflow-y:auto;max-height:168px;}
+  .dishes li{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--line);font-size:12.5px;}
+  .dishes li:first-child{border-top:none;}
+  .dishes .q{font-weight:800;color:var(--gold);min-width:24px;}
+  .dishes .n{flex:1;min-width:0;line-height:1.3;}
+  .dishes .mod{display:block;font-size:10.5px;color:var(--faint);}
+  .ist{
+    flex-shrink:0;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;
+    background:color-mix(in srgb,var(--c) 18%,transparent);color:var(--c);
+  }
+  .ist.queued{--c:var(--queued);} .ist.cooking{--c:var(--cooking);} .ist.plated{--c:#d6c56a;}
+  .ist.pass{--c:var(--ready);} .ist.served{--c:var(--served);}
+  .empty-note{padding:16px 20px;color:var(--faint);font-size:12.5px;flex:1;}
+
+  .t-foot{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:11px 14px 13px 20px;border-top:1px solid var(--line);background:rgba(0,0,0,.14);
+  }
+  .amt{font-size:20px;font-weight:800;line-height:1.1;}
+  .amt small{display:block;font-size:11px;color:var(--dim);font-weight:500;margin-top:2px;}
+  .btn{
+    border:none;border-radius:11px;padding:11px 15px;font-weight:800;font-size:12.5px;
+    background:var(--ember);color:#1A0E06;
+  }
+  .btn:active{transform:scale(.97);}
+  .btn.gold{background:var(--gold);}
+  .btn.plain{background:transparent;border:1px solid var(--line);color:var(--dim);font-weight:600;}
+  .btn:disabled{opacity:.35;cursor:not-allowed;}
+
+  .vacant-body{padding:6px 20px 0;}
+  .vacant-body .big{font-size:15px;font-weight:700;color:var(--dim);}
+  .vacant-body .small{font-size:12px;color:var(--faint);margin-top:6px;line-height:1.5;}
+  .vacant-foot{padding:0 20px 16px;font-size:12px;color:var(--faint);}
+
+  .empty-floor{grid-column:1/-1;text-align:center;color:var(--faint);padding:70px 10px;font-size:14px;}
+
+  .overlay{
+    position:fixed;inset:0;background:rgba(8,6,4,.8);display:none;align-items:center;justify-content:center;
+    padding:16px;z-index:50;overflow-y:auto;
+  }
+  .overlay.open{display:flex;}
+  .bill-wrap{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;justify-content:center;max-width:860px;width:100%;margin:auto;}
+
+  .paper{
+    background:#FBF8F1;color:#26221C;width:340px;max-width:100%;border-radius:6px;padding:22px 20px 18px;
+    box-shadow:0 18px 50px rgba(0,0,0,.5);font-size:12.5px;
+  }
+  .paper h2{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.06em;text-align:center;margin:0;font-weight:400;}
+  .paper .sub{text-align:center;color:#6f665a;font-size:11px;margin:2px 0 12px;}
+  .paper .meta{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:11.5px;padding:10px 0;border-top:1px dashed #b9b09f;border-bottom:1px dashed #b9b09f;}
+  .paper .meta span:nth-child(odd){color:#7b7265;}
+  .paper table{width:100%;border-collapse:collapse;margin:10px 0;}
+  .paper th{font-weight:600;font-size:11px;color:#7b7265;text-align:right;padding:0 0 5px;}
+  .paper th:first-child,.paper td:first-child{text-align:left;}
+  .paper td{padding:4px 0;text-align:right;vertical-align:top;font-variant-numeric:tabular-nums;}
+  .paper td:first-child{padding-right:6px;}
+  .paper .tot{border-top:1px dashed #b9b09f;padding-top:8px;}
+  .paper .row{display:flex;justify-content:space-between;padding:2px 0;font-variant-numeric:tabular-nums;}
+  .paper .row.grand{font-size:17px;font-weight:800;border-top:2px solid #26221C;margin-top:6px;padding-top:8px;}
+  .paper .row.muted{color:#7b7265;}
+  .paper .thanks{text-align:center;color:#7b7265;font-size:11px;margin-top:14px;}
+
+  .pay-panel{
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;width:340px;max-width:100%;
+  }
+  .pay-panel h3{margin:0 0 14px;font-size:16px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;color:var(--dim);margin-bottom:6px;}
+  .field input[type=number]{
+    width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--paper);font-size:14px;font-family:inherit;
+  }
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;font-size:13px;margin-bottom:14px;}
+  .switch{position:relative;width:42px;height:24px;}
+  .switch input{opacity:0;position:absolute;inset:0;margin:0;cursor:pointer;z-index:2;}
+  .switch span{position:absolute;inset:0;background:var(--panel2);border:1px solid var(--line);border-radius:999px;transition:.2s;}
+  .switch span::after{content:"";position:absolute;left:2px;top:2px;width:18px;height:18px;border-radius:50%;background:var(--dim);transition:.2s;}
+  .switch input:checked + span{background:rgba(212,175,55,.3);border-color:var(--gold);}
+  .switch input:checked + span::after{transform:translateX(18px);background:var(--gold);}
+  .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+  .seg button{padding:10px 4px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--dim);font-weight:700;font-size:12.5px;}
+  .seg button.on{border-color:var(--gold);color:var(--gold);background:rgba(212,175,55,.1);}
+  .change{font-size:12.5px;margin-top:8px;color:var(--dim);min-height:18px;}
+  .change b{color:var(--ready);}
+  .err{color:var(--danger);font-size:12px;margin:0 0 10px;min-height:0;}
+  .warn{
+    font-size:12px;line-height:1.45;padding:10px 12px;border-radius:10px;margin-bottom:14px;
+    background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:#f8c877;
+  }
+  .pay-actions{display:flex;flex-direction:column;gap:8px;margin-top:6px;}
+  .pay-actions .btn{padding:14px;font-size:14px;width:100%;}
+
+  .modal{
+    background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;width:100%;max-width:560px;margin:auto;
+  }
+  .modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;}
+  .modal h3{margin:0;font-size:18px;}
+  .modal .sub{margin:3px 0 0;font-size:12px;color:var(--dim);}
+  .x{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--dim);font-size:15px;}
+  .method-totals{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
+  .method-totals div{background:var(--panel2);border-radius:10px;padding:10px 12px;}
+  .method-totals .l{font-size:11.5px;color:var(--dim);}
+  .method-totals .v{font-size:16px;font-weight:800;margin-top:2px;}
+  .ledger{max-height:52vh;overflow-y:auto;}
+  .ledger .lrow{display:grid;grid-template-columns:52px 54px 1fr auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line);font-size:12.5px;}
+  .ledger .lrow:first-child{border-top:none;}
+  .ledger .lt{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.03em;}
+  .ledger .lm{color:var(--dim);font-size:11.5px;}
+  .ledger .la{font-weight:800;}
+  .ledger .lg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .modal-foot{display:flex;justify-content:space-between;gap:10px;margin-top:14px;}
+
+  #toast{
+    position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translate(-50%,12px);
+    background:var(--panel2);border:1px solid var(--line);color:var(--paper);font-size:13px;font-weight:600;
+    padding:11px 18px;border-radius:14px;opacity:0;pointer-events:none;transition:.25s;z-index:80;max-width:92vw;
+  }
+  #toast.show{opacity:1;transform:translate(-50%,0);}
+  #toast.good{border-color:var(--ready);}
+  #toast.warn{border-color:var(--ember);}
+
+  @media (max-width:640px){
+    header.top,.summary,.filters{padding-left:14px;padding-right:14px;}
+    #floor{padding:12px 14px 60px;}
+    .legend{display:none;}
+    .fig{min-width:0;padding-right:18px;margin-right:18px;}
+  }
+  @media print{
+    body{background:#fff;}
+    body > *:not(#billModal){display:none!important;}
+    #billModal{position:static;display:block!important;background:none;padding:0;}
+    .pay-panel{display:none!important;}
+    .paper{box-shadow:none;width:80mm;margin:0 auto;}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <div class="logo">SB</div>
+    <div>
+      <h1>The Spice Bistro · Floor Manager</h1>
+      <p><span class="live-dot"></span><span>Sync active with tables and KDS</span></p>
+    </div>
+  </div>
+  <div class="actions">
+    <span class="clock" id="clock">00:00:00</span>
+    <button class="ghost-btn" id="soundBtn">Alerts on</button>
+    <button class="ghost-btn" id="ledgerBtn">Today's bills</button>
+    <button class="ghost-btn" id="demoBtn" title="Adds sample tables">Add sample orders</button>
+  </div>
+</header>
+
+<section class="summary" id="summary"></section>
+<div class="filters" id="filters"></div>
+<main id="floor" aria-live="polite"></main>
+
+<!-- Bill Settlement Modal -->
+<div class="overlay" id="billModal" role="dialog" aria-modal="true" aria-label="Bill">
+  <div class="bill-wrap">
+    <div class="paper" id="billPaper"></div>
+    <div class="pay-panel">
+      <h3 id="payTitle">Settle bill</h3>
+      <div class="warn" id="billWarn" style="display:none"></div>
+
+      <div class="field">
+        <label for="discountInput">Discount (₹)</label>
+        <input type="number" id="discountInput" min="0" step="1" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="toggle-row">
+        <span>Add 10% service charge</span>
+        <label class="switch"><input type="checkbox" id="serviceToggle" aria-label="Add service charge"><span></span></label>
+      </div>
+
+      <div class="field">
+        <label>Payment method</label>
+        <div class="seg" id="methodSeg">
+          <button data-m="cash" class="on">Cash</button>
+          <button data-m="upi">UPI</button>
+          <button data-m="card">Card</button>
+        </div>
+      </div>
+
+      <div class="field" id="cashField">
+        <label for="cashInput">Cash received (₹)</label>
+        <input type="number" id="cashInput" min="0" step="1" placeholder="Leave empty if exact" inputmode="numeric">
+        <div class="change" id="changeLine"></div>
+      </div>
+
+      <p class="err" id="payErr"></p>
+      <div class="pay-actions">
+        <button class="btn gold" id="paidBtn">Mark as paid</button>
+        <button class="btn plain" id="printBtn">Print bill</button>
+        <button class="btn plain" id="closeBillBtn">Keep table open</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Ledger Modal -->
+<div class="overlay" id="ledgerModal" role="dialog" aria-modal="true" aria-label="Today's bills">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h3>Today's bills</h3>
+        <p class="sub" id="ledgerSub"></p>
+      </div>
+      <button class="x" id="ledgerClose" aria-label="Close">✕</button>
+    </div>
+    <div class="method-totals" id="methodTotals"></div>
+    <div class="ledger" id="ledgerList"></div>
+    <div class="modal-foot">
+      <button class="btn plain" id="csvBtn">Download CSV</button>
+      <button class="btn plain" id="ledgerClose2">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const TABLE_COUNT = 20;
+const GST_RATE = 0.05;
+const SERVICE_RATE = 0.10;
+const STORE_KEY = 'sb_manager_state_v2';
+const BRIDGE_CHANNEL_NAME = 'bistro_order_bridge';
+const BRIDGE_KEY = 'kds_last_event';
+
+const MENU = {
+  "Butter Chicken Delhi Style": 420,
+  "Tandoori Butter Naan": 75,
+  "Dal Makhani 24-hr Slow Cook": 380,
+  "Subz Dum Biryani": 390,
+  "Murgh Malai Kebab": 440
+};
+
+const ALERT_LABELS = {
+  water:   { text: 'Water',          cls: '' },
+  cutlery: { text: 'Cutlery',        cls: '' },
+  waiter:  { text: 'Captain called', cls: '' },
+  bill:    { text: 'Bill requested', cls: 'bill' }
+};
+
+const STATUS_TEXT = {
+  vacant: 'Vacant', seated: 'Seated', queued: 'Order placed', cooking: 'Cooking',
+  ready: 'Ready at pass', dining: 'Dining', billed: 'Awaiting payment'
+};
+const ITEM_TEXT = { queued:'Queued', cooking:'Cooking', plated:'Plated', pass:'At pass', served:'Served' };
+
+const pad2 = n => String(n).padStart(2, '0');
+const tableId = n => 'T-' + pad2(n);
+
+function loadState(){
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(STORE_KEY)); } catch(e){}
+  if(!s || typeof s !== 'object') s = {};
+  s.tables = s.tables || {};
+  s.ledger = Array.isArray(s.ledger) ? s.ledger : [];
+  s.billSeq = s.billSeq || { day: '', n: 0 };
+  for(let i = 1; i <= TABLE_COUNT; i++){
+    const id = tableId(i);
+    if(!s.tables[id]) s.tables[id] = { id, rawId: id, session: null, lastPaid: null };
+  }
+  const cutoff = Date.now() - 90*24*3600*1000;
+  s.ledger = s.ledger.filter(r => r.paidAt > cutoff);
+  return s;
+}
+let state = loadState();
+function save(){ try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e){} }
+
+let filter = 'all';
+let soundOn = true;
+let billTableId = null;
+let payMethod = 'cash';
+
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const inr  = n => '₹' + Math.round(n).toLocaleString('en-IN');
+const inr2 = n => '₹' + n.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+const r2 = n => Math.round(n * 100) / 100;
+
+function normTable(raw){
+  const s = String(raw == null ? '' : raw).trim();
+  const m = s.match(/^t[-\s]?(\d+)$/i);
+  if(m) return 'T-' + m[1].padStart(2, '0');
+  return s ? s.toUpperCase() : 'T-01';
+}
+function tableNum(id){ const m = id.match(/(\d+)/); return m ? parseInt(m[1], 10) : 9999; }
+function sortedTableIds(){
+  return Object.keys(state.tables).sort((a,b) => tableNum(a) - tableNum(b) || a.localeCompare(b));
+}
+function ensureTable(id, rawId){
+  if(!state.tables[id]) state.tables[id] = { id, rawId: rawId || id, session: null, lastPaid: null };
+  if(rawId) state.tables[id].rawId = rawId;
+  return state.tables[id];
+}
+function elapsedText(ms){
+  const m = Math.max(0, Math.floor(ms / 60000));
+  if(m < 60) return m + ' min';
+  return Math.floor(m / 60) + 'h ' + pad2(m % 60) + 'm';
+}
+function isToday(ts){ return new Date(ts).toDateString() === new Date().toDateString(); }
+function todaysLedger(){ return state.ledger.filter(r => isToday(r.paidAt)); }
+
+function newSession(guest, phone){
+  return {
+    guests: guest ? [guest] : [],
+    phone: phone || '',
+    seatedAt: Date.now(),
+    tickets: [],
+    alerts: [],
+    billGenerated: false,
+    billNo: null,
+    bill: { discount: 0, service: false }
+  };
+}
+
+function itemStatus(ticket, item){
+  if(ticket.status === 'SERVED') return 'served';
+  if(ticket.status === 'READY')  return 'pass';
+  if(item.done) return 'plated';
+  if(ticket.status === 'COOKING') return 'cooking';
+  return 'queued';
+}
+function tableStatus(t){
+  const s = t.session;
+  if(!s) return 'vacant';
+  if(s.billGenerated) return 'billed';
+  if(!s.tickets.length) return 'seated';
+  const open = s.tickets.filter(x => x.status !== 'SERVED');
+  if(!open.length) return 'dining';
+  if(open.some(x => x.status === 'QUEUED'))  return 'queued';
+  if(open.some(x => x.status === 'COOKING')) return 'cooking';
+  return 'ready';
+}
+function computeBill(s){
+  const map = new Map();
+  let unpriced = 0;
+  s.tickets.forEach(t => t.items.forEach(i => {
+    const key = i.name + '|' + i.price;
+    if(!i.price) unpriced++;
+    if(map.has(key)) map.get(key).qty += i.qty;
+    else map.set(key, { name: i.name, qty: i.qty, price: i.price });
+  }));
+  const lines = [...map.values()].map(l => ({ ...l, amount: l.qty * l.price }));
+  const subtotal = lines.reduce((a, l) => a + l.amount, 0);
+  const discount = Math.min(Math.max(parseFloat(s.bill.discount) || 0, 0), subtotal);
+  const service = s.bill.service ? r2((subtotal - discount) * SERVICE_RATE) : 0;
+  const taxable = subtotal - discount + service;
+  const gst = r2(taxable * GST_RATE);
+  const raw = taxable + gst;
+  const total = Math.round(raw);
+  return { lines, subtotal, discount, service, gst, cgst: r2(gst/2), sgst: r2(gst/2), roundOff: r2(total - raw), total, unpriced };
+}
+function runningTotal(s){
+  let sum = 0;
+  s.tickets.forEach(t => t.items.forEach(i => sum += i.qty * i.price));
+  return sum;
+}
+function dishCount(s){
+  let n = 0; s.tickets.forEach(t => t.items.forEach(i => n += i.qty)); return n;
+}
+
+const hasBroadcast = 'BroadcastChannel' in window;
+const bus = hasBroadcast ? new BroadcastChannel(BRIDGE_CHANNEL_NAME) : null;
+const seen = new Set();
+let tsCounter = 0;
+
+function markSeen(msg){
+  seen.add(`${msg.type}|${msg.table}|${msg.timestamp}`);
+  if(seen.size > 800){ [...seen].slice(0, 300).forEach(k => seen.delete(k)); }
+}
+function broadcast(type, table, payload){
+  const msg = { type, table, payload, timestamp: Date.now() + (tsCounter++ % 1000) / 1000 };
+  markSeen(msg);
+  if(bus) bus.postMessage(msg);
+  try { localStorage.setItem(BRIDGE_KEY, JSON.stringify(msg)); } catch(e){}
+}
+
+function handleMessage(msg){
+  if(!msg || !msg.type) return;
+  const key = `${msg.type}|${msg.table}|${msg.timestamp}`;
+  if(seen.has(key)) return;
+  markSeen(msg);
+
+  const id = normTable(msg.table);
+  const p = msg.payload || {};
+  let touched = false;
+
+  if(msg.type === 'NEW_ORDER'){
+    const t = ensureTable(id, msg.table);
+    if(!t.session) t.session = newSession(p.guestName, p.phone);
+    const s = t.session;
+    if(p.guestName && !s.guests.includes(p.guestName)) s.guests.push(p.guestName);
+    if(!s.phone && p.phone) s.phone = p.phone;
+
+    const items = (p.items || []).map(it => ({
+      name: it.name, qty: it.qty || 1, station: it.station, modifier: it.modifier,
+      price: Number(it.price != null ? it.price : MENU[it.name]) || 0,
+      done: false
+    }));
+
+    const open = [...s.tickets].reverse().find(x => x.status !== 'SERVED');
+    if(open){
+      let next = Math.max(0, ...open.items.map(i => i.id)) + 1;
+      items.forEach(i => { i.id = next++; open.items.push(i); });
+      if(open.status === 'READY') open.status = 'COOKING';
+    } else {
+      items.forEach((i, idx) => { i.id = idx + 1; });
+      s.tickets.push({ kotId: p.id, status: 'QUEUED', placedAt: Date.now(), items });
+    }
+    if(s.billGenerated){ s.billGenerated = false; toast(`${id} ordered more — regenerate bill`, 'warn'); }
+    touched = true;
+  }
+  else if(msg.type === 'STATUS_UPDATE'){
+    const t = state.tables[id];
+    const tk = t && t.session && t.session.tickets.find(x => x.kotId === p.ticketId);
+    if(tk){
+      tk.status = p.status;
+      if(tk.status === 'READY') tk.items.forEach(i => i.done = true);
+      touched = true;
+    }
+  }
+  else if(msg.type === 'ITEM_UPDATE'){
+    const t = state.tables[id];
+    const tk = t && t.session && t.session.tickets.find(x => x.kotId === p.ticketId);
+    if(tk){
+      const it = tk.items.find(i => i.id === p.itemId);
+      if(it) it.done = !!p.done;
+      touched = true;
+    }
+  }
+  else if(msg.type === 'ORDER_COMPLETE'){
+    const t = state.tables[id];
+    const tk = t && t.session && t.session.tickets.find(x => x.kotId === p.ticketId);
+    if(tk){
+      tk.status = 'SERVED';
+      tk.items.forEach(i => i.done = true);
+      touched = true;
+    }
+  }
+  else if(msg.type === 'BELL_ALERT'){
+    const t = ensureTable(id, msg.table);
+    if(!t.session) t.session = newSession(p.guest, '');
+    const s = t.session;
+    const act = p.action || 'waiter';
+    s.alerts = s.alerts.filter(a => a.action !== act);
+    s.alerts.push({ action: act, at: Date.now() });
+    chime();
+    toast(`${id}: ${(ALERT_LABELS[act] || {text: act}).text}`, 'warn');
+    touched = true;
+  }
+  else if(msg.type === 'TABLE_CLOSED'){
+    const t = state.tables[id];
+    if(t && t.session){
+      t.session = null;
+      touched = true;
+    }
+  }
+
+  if(touched){ save(); render(); flashTile(id); }
+}
+
+if(bus){ bus.onmessage = e => handleMessage(e.data); }
+window.addEventListener('storage', e => {
+  if(e.key === BRIDGE_KEY && e.newValue){ try { handleMessage(JSON.parse(e.newValue)); } catch(err){} }
+});
+
+let lastBridgeTs = Date.now();
+setInterval(() => {
+  try {
+    const raw = localStorage.getItem(BRIDGE_KEY); if(!raw) return;
+    const msg = JSON.parse(raw);
+    if(msg && typeof msg.timestamp === 'number' && msg.timestamp > lastBridgeTs){
+      lastBridgeTs = msg.timestamp; handleMessage(msg);
+    }
+  } catch(e){}
+}, 2000);
+
+let audioCtx = null;
+function chime(){
+  if(!soundOn) return;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+    audioCtx = audioCtx || new AC();
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    const now = audioCtx.currentTime;
+    [880, 1320].forEach((f, i) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, now + i*0.14);
+      g.gain.exponentialRampToValueAtTime(0.16, now + i*0.14 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + i*0.14 + 0.7);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(now + i*0.14); o.stop(now + i*0.14 + 0.75);
+    });
+  } catch(e){}
+}
+
+let toastTimer = null;
+function toast(msg, kind){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + (kind || '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = '', 3200);
+}
+
+function renderSummary(){
+  const ids = sortedTableIds();
+  const inUse = ids.filter(id => state.tables[id].session).length;
+  const openValue = ids.reduce((a, id) => { const s = state.tables[id].session; return a + (s ? runningTotal(s) : 0); }, 0);
+  const led = todaysLedger();
+  const collected = led.reduce((a, r) => a + r.total, 0);
+  const avg = led.length ? collected / led.length : 0;
+  document.getElementById('summary').innerHTML = `
+    <div class="fig"><div class="v num">${inUse}<small> / ${ids.length}</small></div><div class="l">Tables occupied</div></div>
+    <div class="fig"><div class="v num">${inr(openValue)}</div><div class="l">Open running balance</div></div>
+    <div class="fig gold"><div class="v num">${inr(collected)}</div><div class="l">Collected today</div></div>
+    <div class="fig"><div class="v num">${led.length}</div><div class="l">Settled bills${led.length ? ' · avg ' + inr(avg) : ''}</div></div>
+  `;
+}
+
+function needsAttention(t){
+  if(!t.session) return false;
+  const st = tableStatus(t);
+  return t.session.alerts.length > 0 || st === 'ready' || st === 'billed';
+}
+
+function renderFilters(){
+  const ids = sortedTableIds();
+  const counts = {
+    all: ids.length,
+    occupied: ids.filter(id => state.tables[id].session).length,
+    vacant: ids.filter(id => !state.tables[id].session).length,
+    attention: ids.filter(id => needsAttention(state.tables[id])).length
+  };
+  const defs = [['all','All tables'],['occupied','Occupied'],['vacant','Vacant'],['attention','Needs attention']];
+  document.getElementById('filters').innerHTML = defs.map(([k, label]) =>
+    `<button class="chip ${filter === k ? 'active' : ''}" data-filter="${k}">${label}<b class="num">${counts[k]}</b></button>`
+  ).join('') + `
+    <div class="legend">
+      <span><i style="background:var(--queued)"></i>Queued</span>
+      <span><i style="background:var(--cooking)"></i>Cooking</span>
+      <span><i style="background:var(--ready)"></i>Ready</span>
+      <span><i style="background:var(--served)"></i>Dining</span>
+      <span><i style="background:var(--gold)"></i>Awaiting Pay</span>
+    </div>`;
+}
+
+function tileHtml(t){
+  const st = tableStatus(t);
+  const s = t.session;
+
+  if(!s){
+    const lp = t.lastPaid && isToday(t.lastPaid.at)
+      ? `Last settled ${inr(t.lastPaid.amount)} · ${elapsedText(Date.now() - t.lastPaid.at)} ago`
+      : 'Ready for guests';
+    return `
+      <article class="tile s-vacant" id="tile-${esc(t.id)}">
+        <div class="t-head"><div class="t-no">${esc(t.id)}</div><div class="t-side"><span class="badge" style="background:transparent;color:var(--faint)">Vacant</span></div></div>
+        <div class="vacant-body">
+          <div class="big">No guests seated</div>
+          <div class="small">Scan customer QR or click below to simulate.</div>
+        </div>
+        <div class="vacant-foot">${lp}</div>
+      </article>`;
+  }
+
+  const alerts = s.alerts.map(a => {
+    const d = ALERT_LABELS[a.action] || { text: a.action, cls: '' };
+    return `<button class="alert-chip ${d.cls}" data-act="ack" data-t="${esc(t.id)}" data-a="${esc(a.action)}" title="Tap to resolve">${esc(d.text)} ✓</button>`;
+  }).join('');
+
+  let dishes = '';
+  s.tickets.forEach(tk => tk.items.forEach(i => {
+    const ist = itemStatus(tk, i);
+    dishes += `<li>
+      <span class="q num">${i.qty}×</span>
+      <span class="n">${esc(i.name)}${i.modifier ? `<span class="mod">${esc(i.modifier)}</span>` : ''}</span>
+      <span class="ist ${ist}">${ITEM_TEXT[ist]}</span>
+    </li>`;
+  }));
+
+  const hasItems = s.tickets.length > 0;
+  const total = runningTotal(s);
+  let action;
+  if(!hasItems){
+    action = `<button class="btn plain" data-act="clear" data-t="${esc(t.id)}">Clear table</button>`;
+  } else if(s.billGenerated){
+    const b = computeBill(s);
+    action = `<button class="btn gold" data-act="bill" data-t="${esc(t.id)}">Collect ${inr(b.total)}</button>`;
+  } else {
+    action = `<button class="btn" data-act="bill" data-t="${esc(t.id)}">Generate bill</button>`;
+  }
+  const amountBlock = s.billGenerated
+    ? `<div class="amt num">${inr(computeBill(s).total)}<small>Bill incl. tax</small></div>`
+    : `<div class="amt num">${inr(total)}<small>${dishCount(s)} items · pre-tax</small></div>`;
+
+  return `
+    <article class="tile s-${st} ${s.alerts.length ? 'has-alert' : ''}" id="tile-${esc(t.id)}">
+      <div class="t-head">
+        <div class="t-no">${esc(t.id)}</div>
+        <div class="t-side">
+          <span class="badge">${STATUS_TEXT[st]}</span>
+          <div class="who" title="${esc(s.guests.join(', '))}${s.phone ? ' · ' + esc(s.phone) : ''}">${esc(s.guests[0] || 'Guest')}${s.guests.length > 1 ? ' +' + (s.guests.length - 1) : ''} · ${elapsedText(Date.now() - s.seatedAt)}</div>
+        </div>
+      </div>
+      ${alerts ? `<div class="alerts">${alerts}</div>` : ''}
+      ${hasItems ? `<ul class="dishes">${dishes}</ul>` : `<div class="empty-note">Seated, awaiting first order...</div>`}
+      <div class="t-foot">${hasItems ? amountBlock : '<div></div>'}${action}</div>
+    </article>`;
+}
+
+function renderGrid(){
+  const ids = sortedTableIds().filter(id => {
+    const t = state.tables[id];
+    if(filter === 'occupied') return !!t.session;
+    if(filter === 'vacant') return !t.session;
+    if(filter === 'attention') return needsAttention(t);
+    return true;
+  });
+  const el = document.getElementById('floor');
+  if(!ids.length){
+    el.innerHTML = `<div class="empty-floor">${filter === 'attention' ? 'All tables operating smoothly.' : 'No tables match this filter.'}</div>`;
+    return;
+  }
+  el.innerHTML = ids.map(id => tileHtml(state.tables[id])).join('');
+}
+
+function render(){ renderSummary(); renderFilters(); renderGrid(); }
+
+function flashTile(id){
+  const el = document.getElementById('tile-' + id);
+  if(!el) return;
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+}
+
+function todayCode(){
+  const d = new Date();
+  return String(d.getFullYear()).slice(2) + pad2(d.getMonth() + 1) + pad2(d.getDate());
+}
+function assignBillNo(){
+  const day = todayCode();
+  if(state.billSeq.day !== day){ state.billSeq = { day, n: 0 }; }
+  state.billSeq.n++;
+  return `SB-${day}-${String(state.billSeq.n).padStart(3, '0')}`;
+}
+
+function openBill(id){
+  const t = state.tables[id]; if(!t || !t.session || !t.session.tickets.length) return;
+  billTableId = id;
+  const s = t.session;
+  if(!s.billNo) s.billNo = assignBillNo();
+  s.billGenerated = true;
+  save(); render();
+
+  document.getElementById('discountInput').value = s.bill.discount ? s.bill.discount : '';
+  document.getElementById('serviceToggle').checked = !!s.bill.service;
+  document.getElementById('cashInput').value = '';
+  document.getElementById('payErr').textContent = '';
+  setMethod('cash');
+  refreshBill();
+  document.getElementById('billModal').classList.add('open');
+}
+function closeBill(){
+  document.getElementById('billModal').classList.remove('open');
+  billTableId = null;
+}
+
+function refreshBill(){
+  const t = state.tables[billTableId]; if(!t || !t.session) return;
+  const s = t.session;
+  const b = computeBill(s);
+  const now = new Date();
+
+  document.getElementById('payTitle').textContent = `Settle ${t.id}`;
+  document.getElementById('paidBtn').textContent = `Mark ${inr(b.total)} as paid`;
+
+  const open = s.tickets.filter(x => x.status !== 'SERVED')
+                        .reduce((a, x) => a + x.items.reduce((c, i) => c + i.qty, 0), 0);
+  const warns = [];
+  if(open) warns.push(`${open} ${open === 1 ? 'item is' : 'items are'} still being prepared or waiting at the pass.`);
+  if(b.unpriced) warns.push('Some dishes have ₹0 pricing attached.');
+  const w = document.getElementById('billWarn');
+  w.style.display = warns.length ? 'block' : 'none';
+  w.innerHTML = warns.map(esc).join('<br>');
+
+  document.getElementById('billPaper').innerHTML = `
+    <h2>The Spice Bistro</h2>
+    <div class="sub">Tax Invoice</div>
+    <div class="meta">
+      <span>Bill No.</span><span>${esc(s.billNo)}</span>
+      <span>Date</span><span>${now.toLocaleDateString('en-IN')} ${now.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'})}</span>
+      <span>Table</span><span>${esc(t.id)}</span>
+      <span>Guest</span><span>${esc(s.guests.join(', ') || 'Valued Patron')}</span>
+    </div>
+    <table>
+      <thead><tr><th>Dish</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
+      <tbody>${b.lines.map(l => `<tr><td>${esc(l.name)}</td><td>${l.qty}</td><td>${l.price}</td><td>${l.amount.toLocaleString('en-IN')}</td></tr>`).join('')}</tbody>
+    </table>
+    <div class="tot">
+      <div class="row"><span>Subtotal</span><span>${inr2(b.subtotal)}</span></div>
+      ${b.discount ? `<div class="row"><span>Discount</span><span>− ${inr2(b.discount)}</span></div>` : ''}
+      ${b.service ? `<div class="row"><span>Service Charge (10%)</span><span>${inr2(b.service)}</span></div>` : ''}
+      <div class="row muted"><span>CGST (2.5%)</span><span>${inr2(b.cgst)}</span></div>
+      <div class="row muted"><span>SGST (2.5%)</span><span>${inr2(b.sgst)}</span></div>
+      ${b.roundOff ? `<div class="row muted"><span>Round Off</span><span>${b.roundOff > 0 ? '+' : '−'} ${inr2(Math.abs(b.roundOff))}</span></div>` : ''}
+      <div class="row grand"><span>Total</span><span>${inr2(b.total)}</span></div>
+    </div>
+    <div class="thanks">Thank you for dining with us!</div>
+  `;
+  updateChange();
+}
+
+function setMethod(m){
+  payMethod = m;
+  document.querySelectorAll('#methodSeg button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+  document.getElementById('cashField').style.display = m === 'cash' ? 'block' : 'none';
+  document.getElementById('payErr').textContent = '';
+}
+function updateChange(){
+  const t = state.tables[billTableId]; if(!t || !t.session) return;
+  const total = computeBill(t.session).total;
+  const v = document.getElementById('cashInput').value;
+  const el = document.getElementById('changeLine');
+  if(v === ''){ el.innerHTML = ''; return; }
+  const diff = parseFloat(v) - total;
+  el.innerHTML = diff >= 0 ? `Return change: <b class="num">${inr(diff)}</b>` : `<span style="color:var(--danger)">Short by ${inr(-diff)}</span>`;
+}
+
+function confirmPaid(){
+  const t = state.tables[billTableId]; if(!t || !t.session) return;
+  const s = t.session;
+  const b = computeBill(s);
+  const err = document.getElementById('payErr');
+
+  let cashReceived = null;
+  if(payMethod === 'cash'){
+    const v = document.getElementById('cashInput').value;
+    if(v !== ''){
+      cashReceived = parseFloat(v);
+      if(cashReceived < b.total){ err.textContent = `Cash received is ${inr(b.total - cashReceived)} short.`; return; }
+    }
+  }
+
+  const paidAt = Date.now();
+  state.ledger.push({
+    billNo: s.billNo, table: t.id, guest: s.guests.join(', ') || 'Patron', phone: s.phone,
+    lines: b.lines, subtotal: b.subtotal, discount: b.discount, service: b.service, gst: b.gst,
+    roundOff: b.roundOff, total: b.total, method: payMethod, cashReceived,
+    seatedAt: s.seatedAt, paidAt
+  });
+  t.lastPaid = { amount: b.total, at: paidAt };
+  const rawId = t.rawId || t.id;
+  t.session = null;
+  save();
+
+  // Notify customer phone & kitchen
+  broadcast('TABLE_CLOSED', rawId, { billNo: s.billNo, amount: b.total });
+
+  closeBill();
+  render();
+  flashTile(t.id);
+  toast(`${t.id} settled (${inr(b.total)} via ${payMethod.toUpperCase()})`, 'good');
+}
+
+function openLedger(){
+  const led = todaysLedger().slice().reverse();
+  const sum = m => led.filter(r => r.method === m).reduce((a, r) => a + r.total, 0);
+  const total = led.reduce((a, r) => a + r.total, 0);
+  document.getElementById('ledgerSub').textContent = `${led.length} invoices settled today · ${inr(total)} total`;
+  document.getElementById('methodTotals').innerHTML = ['cash','upi','card'].map(m =>
+    `<div><div class="l">${m === 'upi' ? 'UPI' : m[0].toUpperCase() + m.slice(1)}</div><div class="v num">${inr(sum(m))}</div></div>`).join('');
+  document.getElementById('ledgerList').innerHTML = led.length ? led.map(r => `
+    <div class="lrow">
+      <span class="lt">${esc(r.table)}</span>
+      <span class="lm num">${new Date(r.paidAt).toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'})}</span>
+      <span class="lg">${esc(r.guest)}<div class="lm">${esc(r.billNo)} · ${r.method.toUpperCase()}</div></span>
+      <span class="la num">${inr(r.total)}</span>
+    </div>`).join('') : `<div class="empty-note" style="padding:24px 0">No bills settled yet today.</div>`;
+  document.getElementById('ledgerModal').classList.add('open');
+}
+function closeLedger(){ document.getElementById('ledgerModal').classList.remove('open'); }
+
+function downloadCsv(){
+  const led = todaysLedger();
+  if(!led.length){ toast('No records to export yet'); return; }
+  const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const rows = [['Bill No','Table','Guest','Paid At','Method','Subtotal','Discount','Service Charge','GST','Round Off','Total','Dishes']];
+  led.forEach(r => rows.push([
+    r.billNo, r.table, r.guest, new Date(r.paidAt).toLocaleString('en-IN'), r.method,
+    r.subtotal, r.discount, r.service, r.gst, r.roundOff, r.total,
+    r.lines.map(l => `${l.qty}x ${l.name}`).join('; ')
+  ]));
+  const blob = new Blob([rows.map(r => r.map(q).join(',')).join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `bistro-bills-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+function simulate(){
+  const free = sortedTableIds().filter(id => !state.tables[id].session);
+  if(!free.length){ toast('All tables are active'); return; }
+  const names = ['Aarav','Diya','Vikram','Ananya','Rohan','Kavya'];
+  const dishes = [
+    ['Butter Chicken Delhi Style','CURRY','Mild, Extra Fenugreek', 420],
+    ['Tandoori Butter Naan','TANDOOR','Crisp & Hot', 75],
+    ['Dal Makhani 24-hr Slow Cook','CURRY','Extra Butter Float', 380],
+    ['Subz Dum Biryani','BIRYANI','With Burani Raita', 390],
+    ['Murgh Malai Kebab','TANDOOR','With Mint Chutney', 440]
+  ];
+  free.sort(() => Math.random() - .5).slice(0, 2).forEach(id => {
+    const pick = dishes.slice().sort(() => Math.random() - .5).slice(0, 2);
+    const kot = 'KOT-' + Math.floor(100 + Math.random() * 899);
+    const items = pick.map(d => ({ name: d[0], station: d[1], modifier: d[2], price: d[3], qty: 1 }));
+    handleMessage({
+      type: 'NEW_ORDER', table: id, timestamp: Date.now(),
+      payload: {
+        id: kot, table: id, guestName: names[Math.floor(Math.random() * names.length)], phone: '+91 98765 43210',
+        stations: [...new Set(items.map(i => i.station))], items
+      }
+    });
+  });
+  toast('Sample tables seeded', 'good');
+}
+
+document.getElementById('floor').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if(!b) return;
+  const id = b.dataset.t, t = state.tables[id]; if(!t) return;
+  const act = b.dataset.act;
+  if(act === 'bill') openBill(id);
+  if(act === 'ack' && t.session){
+    t.session.alerts = t.session.alerts.filter(a => a.action !== b.dataset.a);
+    save(); render();
+  }
+  if(act === 'clear' && t.session && !t.session.tickets.length){
+    const raw = t.rawId || t.id;
+    t.session = null; save(); render();
+    broadcast('TABLE_CLOSED', raw, {});
+    toast(`${id} cleared`);
+  }
+});
+document.getElementById('filters').addEventListener('click', e => {
+  const b = e.target.closest('[data-filter]'); if(!b) return;
+  filter = b.dataset.filter; render();
+});
+document.getElementById('methodSeg').addEventListener('click', e => {
+  const b = e.target.closest('button[data-m]'); if(b) setMethod(b.dataset.m);
+});
+document.getElementById('discountInput').addEventListener('input', e => {
+  const t = state.tables[billTableId]; if(!t || !t.session) return;
+  t.session.bill.discount = Math.max(0, parseFloat(e.target.value) || 0);
+  save(); refreshBill(); renderGrid();
+});
+document.getElementById('serviceToggle').addEventListener('change', e => {
+  const t = state.tables[billTableId]; if(!t || !t.session) return;
+  t.session.bill.service = e.target.checked;
+  save(); refreshBill(); renderGrid();
+});
+document.getElementById('cashInput').addEventListener('input', () => { document.getElementById('payErr').textContent = ''; updateChange(); });
+document.getElementById('paidBtn').onclick = confirmPaid;
+document.getElementById('printBtn').onclick = () => window.print();
+document.getElementById('closeBillBtn').onclick = closeBill;
+document.getElementById('ledgerBtn').onclick = openLedger;
+document.getElementById('ledgerClose').onclick = closeLedger;
+document.getElementById('ledgerClose2').onclick = closeLedger;
+document.getElementById('csvBtn').onclick = downloadCsv;
+document.getElementById('demoBtn').onclick = simulate;
+document.getElementById('soundBtn').onclick = e => {
+  soundOn = !soundOn;
+  e.currentTarget.textContent = soundOn ? 'Alerts on' : 'Alerts muted';
+  e.currentTarget.classList.toggle('off', !soundOn);
+  if(soundOn) chime();
+};
+document.addEventListener('keydown', e => { if(e.key === 'Escape'){ closeBill(); closeLedger(); } });
+[document.getElementById('billModal'), document.getElementById('ledgerModal')].forEach(ov => {
+  ov.addEventListener('click', e => { if(e.target === ov){ closeBill(); closeLedger(); } });
+});
+
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB');
+}, 1000);
+document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB');
+render();
+</script>
+</body>
+</html>
