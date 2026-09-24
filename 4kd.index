@@ -1,0 +1,219 @@
+/* Kitchen Dashboard add-on for The Spice Bistro KDS
+   Add ONE line just before </body> in your KDS file (after the main <script>):
+   <script src="kitchen-dashboard.js"></script>                                   */
+(function () {
+  // ---- 1. Dish photos: paste your own image URL per dish (name must match the order name) ----
+  window.DISH_IMAGES = Object.assign({
+    // "Butter Chicken": "images/butter-chicken.jpg",
+    // "Chicken Biryani": "https://your-site.com/biryani.jpg",
+  }, window.DISH_IMAGES || {});
+  const CUR = '₹';
+
+  // ---- 2. Sales store (saved per day in localStorage) ----
+  const KEY = 'kds_sales_v1';
+  const day = () => new Date().toISOString().slice(0, 10);
+  const blank = () => ({ date: day(), dishes: {}, hours: {}, orders: 0, addons: 0, prep: [], demo: false });
+  let S = (() => { try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.date === day()) return s; } catch (e) {} return blank(); })();
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  function record(p, isAddon) {
+    if (S.demo) S = blank();
+    const h = new Date().getHours();
+    S.orders++; if (isAddon) S.addons++;
+    (p.items || []).forEach(i => {
+      const d = S.dishes[i.name] || (S.dishes[i.name] = { qty: 0, rev: 0, station: i.station || 'CURRY' });
+      d.qty += i.qty; d.rev += (i.price || 0) * i.qty;
+      S.hours[h] = (S.hours[h] || 0) + i.qty;
+    });
+    save(); refresh();
+  }
+
+  // ---- 3. Hook into the existing KDS without editing it ----
+  const origOrder = window.handleCustomerOrder;
+  window.handleCustomerOrder = function (msg) {
+    try {
+      if (msg && msg.type === 'NEW_ORDER' && msg.payload && !processedOrderIds.has(msg.payload.id) && !tickets.some(t => t.id === msg.payload.id)) {
+        record(msg.payload, tickets.some(t => t.table === msg.payload.table && t.status !== 'COMPLETED'));
+      }
+    } catch (e) {}
+    return origOrder.apply(this, arguments);
+  };
+  ['bumpTicketStage', 'toggleItemStrike'].forEach(name => {
+    const o = window[name];
+    window[name] = function () {
+      const before = new Map(tickets.map(t => [t.id, t.status]));
+      const r = o.apply(this, arguments);
+      tickets.forEach(t => {
+        const b = before.get(t.id);
+        if (t.status === 'READY' && b && b !== 'READY') { S.prep.push(t.timeElapsedSec); save(); refresh(); }
+      });
+      return r;
+    };
+  });
+
+  // ---- 4. Look-up helpers ----
+  const ART = [
+    [/biryani|pulao|rice/i, '🍚'], [/paneer/i, '🧀'], [/naan|roti|kulcha|paratha/i, '🫓'],
+    [/tikka|tandoori|kebab|grill|wing/i, '🍗'], [/mutton|lamb|rogan|keema/i, '🍖'], [/fish|prawn/i, '🍤'],
+    [/lassi|juice|drink|soda/i, '🥤'], [/chai|tea|coffee/i, '☕'], [/gulab|jamun|kheer|halwa|dessert/i, '🍮'],
+    [/soup/i, '🍲'], [/dal|curry|masala|korma|butter|gravy/i, '🍛'],
+  ];
+  const emoji = n => (ART.find(a => a[0].test(n)) || [0, '🍽️'])[1];
+  const STN = {
+    TANDOOR: { label: 'Tandoor & Grill', c: '#f97316', bg: 'linear-gradient(135deg,#7c2d12,#1c0a05)' },
+    CURRY:   { label: 'Curry & Gravy',   c: '#e5b358', bg: 'linear-gradient(135deg,#78350f,#1a1206)' },
+    BIRYANI: { label: 'Biryani & Rice',  c: '#10b981', bg: 'linear-gradient(135deg,#14532d,#06140c)' },
+  };
+  const stn = k => STN[k] || { label: k || 'Other', c: '#94a3b8', bg: 'linear-gradient(135deg,#334155,#0f172a)' };
+  const imgFor = n => { const k = Object.keys(window.DISH_IMAGES).find(x => x.toLowerCase() === n.toLowerCase()); return k ? window.DISH_IMAGES[k] : ''; };
+  const hr = h => (h % 12 || 12) + (h < 12 ? 'a' : 'p');
+  const mmss = s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+  const money = n => CUR + Math.round(n).toLocaleString('en-IN');
+
+  // ---- 5. UI: button + split-screen overlay ----
+  const css = document.createElement('style');
+  css.textContent = `
+    #dashOv{transform:translateY(12px);opacity:0;pointer-events:none;transition:all .22s ease}
+    #dashOv.open{transform:none;opacity:1;pointer-events:auto}
+    .dcard .qty{font-family:'Bebas Neue',Impact,sans-serif;letter-spacing:.03em}
+    .dbar{transition:width .5s ease,height .5s ease}
+    @media (prefers-reduced-motion:reduce){#dashOv,.dbar{transition:none}}
+  `;
+  document.head.appendChild(css);
+
+  const btn = document.createElement('button');
+  btn.id = 'btnDashboard';
+  btn.className = 'touch-btn px-3.5 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold flex items-center gap-1.5 hover:bg-amber-400 transition';
+  btn.innerHTML = '<span>📊</span><span>Kitchen Dashboard</span>';
+  const anchor = document.getElementById('btnRecallModal');
+  (anchor ? anchor.parentElement : document.querySelector('header')).appendChild(btn);
+
+  const ov = document.createElement('div');
+  ov.id = 'dashOv';
+  ov.className = 'fixed inset-0 z-40 bg-[#0a0c10] flex flex-col';
+  ov.innerHTML = `
+    <div class="bg-[#12151c] border-b border-kds-border px-4 py-2.5 flex items-center justify-between gap-3 shrink-0">
+      <div>
+        <h2 class="font-bold text-base text-white">Kitchen Dashboard</h2>
+        <p class="text-[11px] text-slate-400 font-mono" id="dashDate"></p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="dashDemo" class="touch-btn px-3 py-2 rounded-xl bg-[#1c212d] border border-kds-border text-slate-300 text-xs font-semibold">Load sample data</button>
+        <button id="dashClear" class="touch-btn px-3 py-2 rounded-xl bg-[#1c212d] border border-kds-border text-slate-300 text-xs font-semibold">Reset today</button>
+        <button id="dashClose" class="touch-btn px-3.5 py-2 rounded-xl bg-slate-800 text-white text-xs font-bold">✕ Close</button>
+      </div>
+    </div>
+    <div class="flex-1 min-h-0 flex flex-col lg:flex-row">
+      <section id="dashLeft" class="lg:w-1/2 lg:border-r border-kds-border overflow-y-auto p-4"></section>
+      <section id="dashRight" class="lg:w-1/2 overflow-y-auto p-4 border-t lg:border-t-0 border-kds-border"></section>
+    </div>`;
+  document.body.appendChild(ov);
+
+  const open = () => { ov.classList.add('open'); refresh(); };
+  const close = () => ov.classList.remove('open');
+  btn.onclick = open;
+  ov.querySelector('#dashClose').onclick = close;
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  ov.querySelector('#dashClear').onclick = () => { S = blank(); save(); refresh(); };
+  ov.querySelector('#dashDemo').onclick = () => {
+    const menu = [['Chicken Biryani', 'BIRYANI', 320, 41], ['Butter Chicken', 'CURRY', 340, 36], ['Garlic Naan', 'TANDOOR', 70, 58],
+      ['Paneer Tikka', 'TANDOOR', 260, 27], ['Dal Makhani', 'CURRY', 220, 22], ['Tandoori Chicken', 'TANDOOR', 380, 19],
+      ['Mutton Rogan Josh', 'CURRY', 420, 14], ['Veg Biryani', 'BIRYANI', 250, 11]];
+    const wt = { 11: 2, 12: 9, 13: 12, 14: 7, 15: 3, 16: 2, 17: 3, 18: 6, 19: 12, 20: 15, 21: 10, 22: 4 };
+    S = blank(); S.demo = true;
+    menu.forEach(([n, st, p, q]) => S.dishes[n] = { qty: q, rev: p * q, station: st });
+    const tot = menu.reduce((a, m) => a + m[3], 0), wsum = Object.values(wt).reduce((a, b) => a + b, 0);
+    Object.entries(wt).forEach(([h, w]) => S.hours[h] = Math.round(tot * w / wsum));
+    S.orders = 64; S.addons = 9; S.prep = [640, 720, 585, 810, 905, 690, 760];
+    save(); refresh();
+  };
+
+  // ---- 6. Rendering ----
+  function refresh() {
+    if (!ov.classList.contains('open')) return;
+    ov.querySelector('#dashDate').textContent = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' }) + (S.demo ? '  ·  showing sample data' : '');
+    const list = Object.entries(S.dishes).map(([name, d]) => ({ name, ...d })).sort((a, b) => b.qty - a.qty);
+    renderLeft(list); renderRight(list);
+  }
+
+  function renderLeft(list) {
+    const el = ov.querySelector('#dashLeft');
+    if (!list.length) {
+      el.innerHTML = `<div class="h-full min-h-[280px] flex flex-col items-center justify-center text-center border border-dashed border-slate-700 rounded-2xl p-6">
+        <span class="text-4xl mb-2">🍽️</span><h3 class="font-bold text-white">No dishes sold yet today</h3>
+        <p class="text-xs text-slate-400 mt-1 max-w-xs">Each dish gets its own card here as soon as a guest orders it. Use “Load sample data” to preview.</p></div>`;
+      return;
+    }
+    const max = list[0].qty;
+    el.innerHTML = `<div class="flex items-baseline justify-between mb-3"><h3 class="font-bold text-white text-sm">Sold today, by dish</h3><span class="text-[11px] text-slate-400 font-mono">${list.length} dishes</span></div>
+    <div class="grid grid-cols-2 xl:grid-cols-3 gap-3">${list.map((d, i) => {
+      const s = stn(d.station), img = imgFor(d.name);
+      return `<article class="dcard rounded-2xl overflow-hidden bg-kds-card border border-kds-border flex flex-col">
+        <div class="relative h-28 flex items-center justify-center" style="background:${s.bg}">
+          <span class="text-5xl">${emoji(d.name)}</span>
+          ${img ? `<img src="${esc(img)}" alt="${esc(d.name)}" class="absolute inset-0 w-full h-full object-cover" onerror="this.remove()">` : ''}
+          <span class="absolute top-2 left-2 px-1.5 py-0.5 rounded-md bg-black/60 text-[10px] font-mono font-bold text-white">#${i + 1}</span>
+          <span class="absolute bottom-2 left-2 px-1.5 py-0.5 rounded-md bg-black/60 text-[10px] font-semibold" style="color:${s.c}">${esc(s.label)}</span>
+        </div>
+        <div class="p-3">
+          <div class="text-sm font-bold text-slate-100 truncate" title="${esc(d.name)}">${esc(d.name)}</div>
+          <div class="flex items-end justify-between mt-1">
+            <div><span class="qty text-4xl text-white leading-none">${d.qty}</span><span class="text-[11px] text-slate-400 ml-1">sold</span></div>
+            <span class="text-[11px] font-mono text-slate-400">${money(d.rev)}</span>
+          </div>
+          <div class="mt-2 h-1.5 rounded-full bg-slate-800 overflow-hidden"><div class="dbar h-full rounded-full" style="width:${Math.max(4, d.qty / max * 100)}%;background:${s.c}"></div></div>
+        </div></article>`;
+    }).join('')}</div>`;
+  }
+
+  function renderRight(list) {
+    const el = ov.querySelector('#dashRight');
+    const dishes = list.reduce((a, d) => a + d.qty, 0), rev = list.reduce((a, d) => a + d.rev, 0);
+    const avgPrep = S.prep.length ? S.prep.reduce((a, b) => a + b, 0) / S.prep.length : 0;
+    const kpi = (v, l) => `<div class="rounded-2xl bg-kds-card border border-kds-border p-3"><div class="text-2xl font-bold text-white font-mono">${v}</div><div class="text-[11px] text-slate-400 mt-0.5">${l}</div></div>`;
+    const box = (t, inner) => `<div class="rounded-2xl bg-kds-card border border-kds-border p-4 mt-3"><h4 class="text-xs font-bold text-slate-200 mb-3">${t}</h4>${inner}</div>`;
+    if (!dishes) { el.innerHTML = `<div class="grid grid-cols-2 gap-3">${kpi(0, 'Dishes sold')}${kpi(0, 'Orders')}${kpi(money(0), 'Revenue')}${kpi('–', 'Avg time to pass')}</div>` + box('Insights', '<p class="text-xs text-slate-400">Sales patterns appear here after the first orders come in.</p>'); return; }
+
+    // top sellers
+    const top = list.slice(0, 6), tmax = top[0].qty;
+    const topHtml = top.map(d => { const s = stn(d.station); return `<div class="flex items-center gap-2 mb-2 text-xs"><span class="w-32 truncate text-slate-200">${esc(d.name)}</span>
+      <div class="flex-1 h-5 rounded-md bg-slate-800 overflow-hidden"><div class="dbar h-full rounded-md" style="width:${d.qty / tmax * 100}%;background:${s.c}"></div></div>
+      <span class="w-14 text-right font-mono text-slate-300">${Math.round(d.qty / dishes * 100)}%</span></div>`; }).join('');
+
+    // hourly
+    const hrs = []; for (let h = 10; h <= 23; h++) hrs.push(h);
+    const hmax = Math.max(1, ...hrs.map(h => S.hours[h] || 0)), peak = hrs.reduce((a, h) => (S.hours[h] || 0) > (S.hours[a] || 0) ? h : a, 10);
+    const hourHtml = `<div class="flex items-end gap-1 h-32">${hrs.map(h => { const v = S.hours[h] || 0; return `<div class="flex-1 flex flex-col items-center justify-end h-full" title="${hr(h)}: ${v} dishes">
+      <span class="text-[9px] font-mono text-slate-400 mb-0.5">${v || ''}</span>
+      <div class="dbar w-full rounded-t-md" style="height:${v / hmax * 88}%;min-height:${v ? 3 : 0}px;background:${h === peak ? '#f59e0b' : '#3b4358'}"></div></div>`; }).join('')}</div>
+      <div class="flex gap-1 mt-1">${hrs.map(h => `<span class="flex-1 text-center text-[9px] font-mono text-slate-500">${hr(h)}</span>`).join('')}</div>`;
+
+    // stations
+    const st = {}; list.forEach(d => st[d.station] = (st[d.station] || 0) + d.qty);
+    const sEntries = Object.entries(st).sort((a, b) => b[1] - a[1]); let acc = 0;
+    const grad = sEntries.map(([k, v]) => { const a = acc / dishes * 360; acc += v; return `${stn(k).c} ${a}deg ${acc / dishes * 360}deg`; }).join(',');
+    const donut = `<div class="flex items-center gap-5"><div class="w-28 h-28 rounded-full shrink-0 flex items-center justify-center" style="background:conic-gradient(${grad})">
+      <div class="w-16 h-16 rounded-full bg-kds-card flex flex-col items-center justify-center"><span class="font-mono font-bold text-white text-sm">${dishes}</span><span class="text-[9px] text-slate-400">dishes</span></div></div>
+      <div class="space-y-1.5 text-xs">${sEntries.map(([k, v]) => `<div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-sm" style="background:${stn(k).c}"></span><span class="text-slate-200">${esc(stn(k).label)}</span><span class="font-mono text-slate-400">${Math.round(v / dishes * 100)}%</span></div>`).join('')}</div></div>`;
+
+    // insights
+    const best = list[0], slow = list[list.length - 1], revLead = [...list].sort((a, b) => b.rev - a.rev)[0];
+    const ins = [];
+    ins.push(`<b>${esc(best.name)}</b> is today's best seller: ${best.qty} sold, ${Math.round(best.qty / dishes * 100)}% of all dishes.`);
+    if (S.hours[peak]) ins.push(`Rush hour so far is <b>${hr(peak)}–${hr(peak + 1)}</b> with ${S.hours[peak]} dishes. Prep those items before then.`);
+    if (revLead.name !== best.name) ins.push(`<b>${esc(revLead.name)}</b> earns the most (${money(revLead.rev)}) even though ${esc(best.name)} sells more.`);
+    if (list.length > 2) ins.push(`<b>${esc(slow.name)}</b> is the slowest mover (${slow.qty} sold). Consider a table-side suggestion or a combo.`);
+    if (sEntries.length) ins.push(`<b>${esc(stn(sEntries[0][0]).label)}</b> carries ${Math.round(sEntries[0][1] / dishes * 100)}% of the load, so staff that station first.`);
+    if (S.orders) ins.push(`Guests order ${(dishes / S.orders).toFixed(1)} dishes per order, and ${Math.round(S.addons / S.orders * 100)}% of orders were add-ons to an open table.`);
+    if (avgPrep) ins.push(avgPrep > 1080 ? `Average time to pass is ${mmss(avgPrep)}, over the 18:00 delay limit. Check station capacity.` : `Average time to pass is ${mmss(avgPrep)}, inside the 18:00 delay limit.`);
+
+    el.innerHTML = `<div class="grid grid-cols-2 xl:grid-cols-4 gap-3">${kpi(dishes, 'Dishes sold')}${kpi(S.orders, 'Orders')}${kpi(money(rev), 'Revenue')}${kpi(avgPrep ? mmss(avgPrep) : '–', 'Avg time to pass')}</div>`
+      + box('Top sellers, share of dishes sold', topHtml)
+      + box('Dishes sold by hour', hourHtml)
+      + box('Work split by station', donut)
+      + box('What the numbers say', `<ul class="space-y-2 text-xs text-slate-300 leading-relaxed">${ins.map(i => `<li class="flex gap-2"><span class="text-amber-400">•</span><span>${i}</span></li>`).join('')}</ul>`);
+  }
+
+  setInterval(refresh, 5000);
+})();
