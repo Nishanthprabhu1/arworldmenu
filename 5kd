@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#0d0f12]">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>The Spice Bistro — KDS Expeditor Touch Console</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            kds: {
+              bg: '#0c0e12',
+              card: '#161920',
+              cardHeader: '#1e222c',
+              border: 'rgba(255, 255, 255, 0.12)',
+              gold: '#e5b358',
+              amber: '#f59e0b',
+              crimson: '#ef4444',
+              emerald: '#10b981',
+              cyan: '#06b6d4'
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+            ticket: ['"Bebas Neue"', 'Impact', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+    }
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: #0c0e12; }
+    ::-webkit-scrollbar-thumb { background: #2f3647; border-radius: 9999px; }
+
+    @keyframes rushPulse {
+      0%, 100% { border-color: #ef4444; box-shadow: 0 0 25px -4px rgba(239, 68, 68, 0.65); }
+      50% { border-color: #f87171; box-shadow: 0 0 8px 0px rgba(239, 68, 68, 0.3); }
+    }
+    .ticket-delayed { animation: rushPulse 1.8s infinite ease-in-out; }
+
+    .item-struck {
+      opacity: 0.35;
+      text-decoration: line-through;
+      filter: grayscale(0.8);
+      transition: all 0.2s ease;
+    }
+    .touch-btn:active { transform: scale(0.96); }
+
+    @keyframes itemSyncFlash {
+      0%   { background-color: rgba(6, 182, 212, 0.35); border-color: #06b6d4; box-shadow: 0 0 0 2px rgba(6,182,212,0.25); }
+      100% { background-color: #191d26; border-color: #1e293b; box-shadow: 0 0 0 0 rgba(6,182,212,0); }
+    }
+    .item-sync-flash { animation: itemSyncFlash 0.9s ease-out; }
+
+    @keyframes stageBumpFlash {
+      0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+      25%  { box-shadow: 0 0 34px 6px rgba(16, 185, 129, 0.55); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+    .stage-bump-flash { animation: stageBumpFlash 0.9s ease-out; }
+
+    .synced-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: #67e8f9;
+      animation: syncedPillPop 1.4s ease-out forwards;
+    }
+    @keyframes syncedPillPop {
+      0%   { opacity: 0; transform: translateY(-2px); }
+      15%  { opacity: 1; transform: translateY(0); }
+      75%  { opacity: 1; }
+      100% { opacity: 0; }
+    }
+  </style>
+</head>
+<body class="h-full bg-kds-bg text-slate-100 font-sans antialiased overflow-hidden flex flex-col">
+
+  <header class="bg-[#12151c] border-b border-kds-border px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0 z-30 shadow-lg">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-600 via-amber-700 to-amber-900 border border-amber-500/50 flex items-center justify-center font-ticket text-2xl text-amber-200 tracking-wider shadow-md">
+        SB
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="font-bold text-base tracking-wide text-white flex items-center gap-2">
+            <span>THE SPICE BISTRO</span>
+            <span class="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">Live Expo</span>
+          </h1>
+        </div>
+        <p class="text-[11px] text-slate-400 font-mono flex items-center gap-2">
+          <span>Real-time Guest &amp; Floor Sync Active</span>
+          <span class="text-slate-600">•</span>
+          <span class="text-kds-emerald font-semibold flex items-center gap-1">
+            <span class="w-2 h-2 rounded-full bg-kds-emerald animate-pulse"></span> PASS ONLINE
+          </span>
+        </p>
+      </div>
+    </div>
+
+    <nav class="flex items-center gap-1.5 p-1 bg-[#181c25] rounded-xl border border-kds-border overflow-x-auto max-w-full">
+      <button class="station-tab active touch-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-black shadow transition" data-station="ALL">
+        All Stations <span class="ml-1 px-1.5 py-0.2 rounded bg-black/20 text-[10px]" id="badgeCountAll">0</span>
+      </button>
+      <button class="station-tab touch-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition" data-station="TANDOOR">
+        Tandoor &amp; Grill <span class="ml-1 px-1.5 py-0.2 rounded bg-slate-800 text-[10px]" id="badgeCountTandoor">0</span>
+      </button>
+      <button class="station-tab touch-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition" data-station="CURRY">
+        Curry &amp; Gravy <span class="ml-1 px-1.5 py-0.2 rounded bg-slate-800 text-[10px]" id="badgeCountCurry">0</span>
+      </button>
+      <button class="station-tab touch-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition" data-station="BIRYANI">
+        Biryani &amp; Rice <span class="ml-1 px-1.5 py-0.2 rounded bg-slate-800 text-[10px]" id="badgeCountBiryani">0</span>
+      </button>
+    </nav>
+
+    <div class="flex items-center gap-2.5">
+      <div class="px-3 py-1 bg-[#181c25] rounded-xl border border-kds-border text-right font-mono">
+        <span class="text-[9px] block uppercase text-slate-400 font-semibold tracking-wider">Service Clock</span>
+        <span class="text-sm font-bold text-amber-300 tracking-wider" id="kdsClock">00:00:00</span>
+      </div>
+
+      <button id="toggleAudioBtn" class="touch-btn flex items-center gap-1.5 px-3 py-2 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-300 text-xs font-semibold hover:bg-amber-500/20 transition">
+        <span id="audioIcon">🔔</span>
+        <span id="audioLabel">Bell: ON</span>
+      </button>
+
+      <button id="btnRecallModal" class="touch-btn px-3 py-2 rounded-xl bg-[#1c212d] border border-kds-border hover:border-slate-500 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition">
+        <span>History (<span id="recalledCount">0</span>)</span>
+      </button>
+    </div>
+  </header>
+
+  <section class="bg-[#151922] border-b border-kds-border px-4 py-2 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shrink-0">
+    <div class="flex items-center gap-2 text-xs font-mono">
+      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700">
+        <span class="text-slate-400">QUEUED:</span>
+        <span class="font-bold text-cyan-400 text-sm" id="statQueued">0</span>
+      </div>
+      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700">
+        <span class="text-slate-400">COOKING:</span>
+        <span class="font-bold text-amber-400 text-sm" id="statCooking">0</span>
+      </div>
+      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700">
+        <span class="text-slate-400">PASS READY:</span>
+        <span class="font-bold text-emerald-400 text-sm" id="statReady">0</span>
+      </div>
+      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-950/40 border border-red-500/40">
+        <span class="text-red-400 font-semibold flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span> DELAYED:
+        </span>
+        <span class="font-bold text-red-300 text-sm" id="statDelayed">0</span>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 overflow-x-auto py-0.5">
+      <span class="text-[11px] uppercase font-mono tracking-wider text-amber-400/90 font-bold shrink-0 flex items-center gap-1">
+        <span>🔥 EXPO BATCH:</span>
+      </span>
+      <div class="flex items-center gap-2 shrink-0 font-mono text-xs" id="expoAggregatorChips"></div>
+    </div>
+  </section>
+
+  <main class="flex-1 overflow-x-auto overflow-y-hidden p-4 bg-[#0a0c10]">
+    <div class="h-full flex items-start gap-4 pb-2" id="ticketGridContainer" style="min-width: max-content;"></div>
+  </main>
+
+  <div id="recallModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm opacity-0 pointer-events-none transition-all duration-200">
+    <div class="bg-[#181c26] border border-kds-border w-full max-w-2xl rounded-2xl p-5 shadow-2xl relative max-h-[85vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-kds-border pb-3 mb-4">
+        <div>
+          <h2 class="text-lg font-bold text-white">Completed Kitchen Tickets</h2>
+          <p class="text-xs text-slate-400">Restore or close settled tables</p>
+        </div>
+        <button onclick="closeRecallModal()" class="touch-btn w-8 h-8 rounded-xl bg-slate-800 text-slate-300 font-bold">✕</button>
+      </div>
+      <div class="flex-1 overflow-y-auto space-y-3 pr-1" id="recallListContainer"></div>
+    </div>
+  </div>
+
+  <div id="kdsToast" class="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-[#1e2330] border border-amber-500/50 text-xs text-amber-200 shadow-2xl opacity-0 pointer-events-none transition-all duration-300">
+    <span class="text-lg" id="toastIcon">🔔</span>
+    <span class="font-mono font-medium" id="toastMsg">Ready</span>
+  </div>
+
+  <script>
+    let audioContext = null;
+    let audioEnabled = true;
+
+    function initAudio() {
+      if (!audioContext) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) audioContext = new AudioCtx();
+      }
+    }
+
+    function playKitchenBell() {
+      if (!audioEnabled) return;
+      try {
+        initAudio();
+        if (audioContext.state === 'suspended') audioContext.resume();
+        const now = audioContext.currentTime;
+        [1760, 2637].forEach((freq, idx) => {
+          const osc = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq + (idx * 6), now);
+          gain.gain.setValueAtTime(0.28, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+          osc.connect(gain);
+          gain.connect(audioContext.destination);
+          osc.start(now);
+          osc.stop(now + 1.2);
+        });
+      } catch (err) {}
+    }
+
+    const BRIDGE_CHANNEL_NAME = 'bistro_order_bridge';
+    const hasBroadcast = 'BroadcastChannel' in window;
+    const bus = hasBroadcast ? new BroadcastChannel(BRIDGE_CHANNEL_NAME) : null;
+
+    let tickets = [];
+    let recalledTickets = [];
+    let currentStationFilter = "ALL";
+    const processedOrderIds = new Set();
+
+    let recentlyToggledKey = null;
+    let recentlyBumpedTicketId = null;
+
+    function broadcastKdsUpdate(type, table, payload){
+      const msg = { type, table, payload, timestamp: Date.now() };
+      if(bus) bus.postMessage(msg);
+      localStorage.setItem('kds_last_event', JSON.stringify(msg));
+    }
+
+    function handleCustomerOrder(msg){
+      if(!msg) return;
+
+      if(msg.type === 'NEW_ORDER'){
+        const p = msg.payload;
+
+        if (processedOrderIds.has(p.id) || tickets.some(t => t.id === p.id)) {
+          return;
+        }
+        processedOrderIds.add(p.id);
+
+        const existingTableTicket = tickets.find(t => t.table === p.table && t.status !== 'COMPLETED');
+
+        if (existingTableTicket) {
+          let highestItemId = Math.max(...existingTableTicket.items.map(i => i.id), 0);
+          p.items.forEach(newItem => {
+            highestItemId++;
+            existingTableTicket.items.push({
+              id: highestItemId,
+              name: newItem.name,
+              qty: newItem.qty,
+              station: newItem.station,
+              modifier: newItem.modifier,
+              price: newItem.price,
+              done: false
+            });
+          });
+
+          p.stations.forEach(st => {
+            if(!existingTableTicket.stations.includes(st)) {
+              existingTableTicket.stations.push(st);
+            }
+          });
+
+          if (existingTableTicket.status === 'READY') {
+            existingTableTicket.status = 'COOKING';
+            const completedNow = existingTableTicket.items.filter(i => i.done).length;
+            broadcastKdsUpdate('STATUS_UPDATE', existingTableTicket.table, {
+              status: 'COOKING',
+              ticketId: existingTableTicket.id,
+              completed: completedNow,
+              total: existingTableTicket.items.length
+            });
+          }
+          existingTableTicket.orderType = "Updated / Add-on";
+
+          playKitchenBell();
+          showToast(`⚡ Added dishes to Table ${existingTableTicket.table}`);
+          renderTickets();
+          return;
+        }
+
+        const newTicket = {
+          id: p.id,
+          table: p.table,
+          isVIP: p.isVIP || false,
+          orderType: p.orderType || "AR Mobile Order",
+          server: p.server || "Direct QR App",
+          guestName: p.guestName || "Guest",
+          phone: p.phone || "",
+          timeElapsedSec: 0,
+          status: "QUEUED",
+          stations: p.stations,
+          items: p.items.map((it, idx) => ({ ...it, id: idx + 1, done: false }))
+        };
+
+        tickets.unshift(newTicket);
+        playKitchenBell();
+        showToast(`🔥 NEW ORDER: Table ${newTicket.table} (${newTicket.id})`);
+        renderTickets();
+      }
+
+      if(msg.type === 'BELL_ALERT'){
+        playKitchenBell();
+        showToast(`🛎️ TABLE ${msg.table}: ${msg.payload.action.toUpperCase()} requested!`);
+      }
+
+      if(msg.type === 'TABLE_CLOSED'){
+        const tIdx = tickets.findIndex(t => t.table === msg.table);
+        if(tIdx !== -1){
+          recalledTickets.unshift({ ...tickets[tIdx], bumpedAt: 'Settled by Cashier' });
+          tickets.splice(tIdx, 1);
+          document.getElementById("recalledCount").textContent = recalledTickets.length;
+          renderTickets();
+        }
+      }
+    }
+
+    if(bus){
+      bus.onmessage = (e) => handleCustomerOrder(e.data);
+    } else {
+      window.addEventListener('storage', (e) => {
+        if(e.key === 'kds_last_event'){
+          try { handleCustomerOrder(JSON.parse(e.newValue)); } catch(err){}
+        }
+      });
+    }
+
+    let lastBridgeTimestamp = Date.now();
+    function pollOrderBridge(){
+      try {
+        const raw = localStorage.getItem('kds_last_event');
+        if(!raw) return;
+        const msg = JSON.parse(raw);
+        if(msg && typeof msg.timestamp === 'number' && msg.timestamp > lastBridgeTimestamp){
+          lastBridgeTimestamp = msg.timestamp;
+          handleCustomerOrder(msg);
+        }
+      } catch(err) {}
+    }
+    setInterval(pollOrderBridge, 2500);
+
+    function formatTime(sec) {
+      const mins = Math.floor(sec / 60);
+      const secs = sec % 60;
+      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function initTimers() {
+      const clockEl = document.getElementById("kdsClock");
+      setInterval(() => {
+        clockEl.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+      }, 1000);
+
+      setInterval(() => {
+        tickets.forEach(t => {
+          if (t.status !== 'READY') t.timeElapsedSec++;
+        });
+        updateTicketElapsedDOM();
+        updateBatchAggregator();
+      }, 1000);
+    }
+
+    function updateTicketElapsedDOM() {
+      tickets.forEach(t => {
+        const timerEl = document.getElementById(`timer-${t.id}`);
+        const cardEl = document.getElementById(`card-${t.id}`);
+        if (!timerEl || !cardEl) return;
+        timerEl.textContent = formatTime(t.timeElapsedSec);
+        if (t.timeElapsedSec >= 1080 && t.status !== 'READY') {
+          cardEl.classList.add('ticket-delayed');
+        }
+      });
+    }
+
+    function renderTickets() {
+      const container = document.getElementById("ticketGridContainer");
+      container.innerHTML = "";
+
+      const filtered = tickets.filter(t => {
+        if (currentStationFilter === "ALL") return true;
+        return t.stations.includes(currentStationFilter);
+      });
+
+      updateSummaryMetrics();
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="flex flex-col items-center justify-center w-96 h-80 rounded-2xl border border-dashed border-slate-700 bg-kds-card text-center p-6 my-auto">
+            <span class="text-4xl mb-2">🍽️</span>
+            <h3 class="text-base font-bold text-white">Station Clear</h3>
+            <p class="text-xs text-slate-400 mt-1">Waiting for customer orders...</p>
+          </div>
+        `;
+        return;
+      }
+
+      filtered.forEach(t => {
+        let borderClass = "border-emerald-500/40";
+        if (t.status === "READY") borderClass = "border-cyan-500 shadow-lg shadow-cyan-950/40";
+        else if (t.status === "COOKING") borderClass = "border-amber-500";
+        else if (t.timeElapsedSec >= 1080) borderClass = "border-red-500 ticket-delayed";
+
+        const bumpFlashClass = (recentlyBumpedTicketId === t.id) ? "stage-bump-flash" : "";
+
+        const card = document.createElement("div");
+        card.id = `card-${t.id}`;
+        card.className = `w-[325px] sm:w-[350px] shrink-0 bg-kds-card rounded-2xl border-2 ${borderClass} shadow-xl flex flex-col justify-between overflow-hidden transition-all ${bumpFlashClass}`;
+
+        card.innerHTML = `
+          <div class="bg-kds-cardHeader p-3 border-b border-kds-border">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="font-ticket text-3xl tracking-wider text-white bg-slate-900 px-2.5 py-0.5 rounded-lg border border-slate-700">${t.table}</span>
+                <span class="text-xs font-mono font-bold text-slate-300">${t.orderType}</span>
+              </div>
+              <div class="px-2.5 py-1 rounded-lg border text-sm font-mono flex items-center gap-1 bg-slate-900 border-slate-700">
+                <span>⏱️</span>
+                <span id="timer-${t.id}">${formatTime(t.timeElapsedSec)}</span>
+              </div>
+            </div>
+            <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-800 text-[11px] font-mono text-slate-400">
+              <span class="text-slate-300 font-bold">${t.guestName}</span>
+              <span class="text-amber-400">${t.server}</span>
+            </div>
+            <div class="flex items-center gap-1.5 mt-2 flex-wrap">
+              ${t.stations.map(st => `<span class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700">${st}</span>`).join('')}
+              <span class="ml-auto font-mono text-[10px] text-slate-500 font-bold">${t.id}</span>
+            </div>
+          </div>
+
+          <div class="p-3 flex-1 overflow-y-auto space-y-2.5 max-h-[360px] bg-[#14171e]">
+            ${t.items.map(item => {
+              const itemFlashClass = (recentlyToggledKey === `${t.id}::${item.id}`) ? "item-sync-flash" : "";
+              return `
+              <div class="p-2.5 rounded-xl border border-slate-800 bg-[#191d26] flex items-start gap-2.5 cursor-pointer ${itemFlashClass}" onclick="toggleItemStrike('${t.id}',${item.id})">
+                <div class="mt-0.5 w-5 h-5 rounded-md border ${item.done ? 'bg-emerald-500 border-emerald-400 text-slate-950 font-bold' : 'border-slate-600 bg-slate-900'} flex items-center justify-center shrink-0 text-xs">
+                  ${item.done ? '✓' : ''}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-baseline justify-between gap-2">
+                    <span class="font-bold text-sm text-slate-100 ${item.done ? 'item-struck' : ''}">
+                      <span class="inline-block px-1.5 py-0.5 text-xs font-mono font-black rounded bg-amber-400 text-slate-950 mr-1">${item.qty}x</span>${item.name}
+                    </span>
+                    <span class="text-[9px] font-mono uppercase text-slate-500 font-bold">${item.station}</span>
+                  </div>
+                  ${item.modifier ? `<div class="mt-1 text-[11px] font-semibold text-amber-300">⚡ ${item.modifier}</div>` : ''}
+                  ${itemFlashClass ? `<div class="mt-1"><span class="synced-pill">📡 Guest notified</span></div>` : ''}
+                </div>
+              </div>
+            `;
+            }).join('')}
+          </div>
+
+          <div class="p-3 bg-kds-cardHeader border-t border-kds-border space-y-2">
+            <div class="grid grid-cols-3 gap-1 text-[10px] font-mono text-center font-bold">
+              <span class="py-1 rounded ${t.status === 'QUEUED' ? 'bg-cyan-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-500'}">1. QUEUED</span>
+              <span class="py-1 rounded ${t.status === 'COOKING' ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-500'}">2. COOKING</span>
+              <span class="py-1 rounded ${t.status === 'READY' ? 'bg-emerald-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-500'}">3. READY</span>
+            </div>
+
+            <button onclick="bumpTicketStage('${t.id}')" class="w-full touch-btn py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition ${getBumpBtnStyle(t.status)}">
+              <span>${getBumpBtnLabel(t.status)}</span>
+              <span>→</span>
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      updateBatchAggregator();
+    }
+
+    function getBumpBtnLabel(status) {
+      if (status === 'QUEUED') return "Start Cooking (Sync Phone)";
+      if (status === 'COOKING') return "Plated → Pass Ready (Notify Phone)";
+      if (status === 'READY') return "Complete Order & Clear Pass";
+      return "Bump";
+    }
+
+    function getBumpBtnStyle(status) {
+      if (status === 'QUEUED') return "bg-amber-500 text-slate-950";
+      if (status === 'COOKING') return "bg-emerald-500 text-slate-950";
+      if (status === 'READY') return "bg-cyan-500 text-slate-950";
+      return "bg-slate-700 text-white";
+    }
+
+    function toggleItemStrike(ticketId, itemId) {
+      const ticket = tickets.find(t => t.id === ticketId);
+      if (!ticket) return;
+      const item = ticket.items.find(i => i.id === itemId);
+      if (!item) return;
+      item.done = !item.done;
+
+      const completed = ticket.items.filter(i => i.done).length;
+      const total = ticket.items.length;
+
+      broadcastKdsUpdate('ITEM_UPDATE', ticket.table, {
+        ticketId: ticket.id,
+        itemId: item.id,
+        itemName: item.name,
+        done: item.done,
+        completed,
+        total
+      });
+
+      recentlyToggledKey = `${ticket.id}::${item.id}`;
+      setTimeout(() => { recentlyToggledKey = null; renderTickets(); }, 900);
+
+      if (ticket.items.every(i => i.done) && ticket.status === 'COOKING') {
+        ticket.status = 'READY';
+        playKitchenBell();
+        broadcastKdsUpdate('STATUS_UPDATE', ticket.table, { status: 'READY', ticketId: ticket.id, completed, total });
+        showToast(`Table ${ticket.table} All Plated → Pass Ready!`);
+      }
+      renderTickets();
+    }
+
+    function bumpTicketStage(ticketId) {
+      const idx = tickets.findIndex(t => t.id === ticketId);
+      if (idx === -1) return;
+      const t = tickets[idx];
+
+      if (t.status === 'QUEUED') {
+        t.status = 'COOKING';
+        playKitchenBell();
+        const completed = t.items.filter(i => i.done).length;
+        broadcastKdsUpdate('STATUS_UPDATE', t.table, { status: 'COOKING', ticketId: t.id, completed, total: t.items.length });
+        showToast(`Cooking started for Table ${t.table}`);
+        recentlyBumpedTicketId = t.id;
+        setTimeout(() => { recentlyBumpedTicketId = null; renderTickets(); }, 900);
+      } else if (t.status === 'COOKING') {
+        t.status = 'READY';
+        t.items.forEach(i => i.done = true);
+        playKitchenBell();
+        broadcastKdsUpdate('STATUS_UPDATE', t.table, { status: 'READY', ticketId: t.id, completed: t.items.length, total: t.items.length });
+        showToast(`Table ${t.table} ready at pass! Customer notified.`);
+        recentlyBumpedTicketId = t.id;
+        setTimeout(() => { recentlyBumpedTicketId = null; renderTickets(); }, 900);
+      } else if (t.status === 'READY') {
+        broadcastKdsUpdate('ORDER_COMPLETE', t.table, {
+          ticketId: t.id,
+          items: t.items.map(i => ({ id: i.id, name: i.name, qty: i.qty }))
+        });
+        showToast(`Table ${t.table} dispatched to floor.`);
+
+        recentlyBumpedTicketId = t.id;
+        renderTickets();
+        setTimeout(() => {
+          const stillIdx = tickets.findIndex(tk => tk.id === ticketId);
+          if (stillIdx !== -1) {
+            recalledTickets.unshift({ ...tickets[stillIdx], bumpedAt: new Date().toLocaleTimeString() });
+            tickets.splice(stillIdx, 1);
+            document.getElementById("recalledCount").textContent = recalledTickets.length;
+          }
+          recentlyBumpedTicketId = null;
+          renderTickets();
+        }, 700);
+        return;
+      }
+      renderTickets();
+    }
+
+    function updateBatchAggregator() {
+      const container = document.getElementById("expoAggregatorChips");
+      container.innerHTML = "";
+      const counts = {};
+      tickets.forEach(t => {
+        if (t.status !== 'READY') {
+          t.items.forEach(i => {
+            if (!i.done) counts[i.name] = (counts[i.name] || 0) + i.qty;
+          });
+        }
+      });
+      const entries = Object.entries(counts);
+      if (!entries.length) {
+        container.innerHTML = `<span class="text-slate-500 italic">No batch backlog</span>`;
+        return;
+      }
+      entries.slice(0, 5).forEach(([dishName, totalQty]) => {
+        const chip = document.createElement("div");
+        chip.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#202532] border border-amber-500/30 text-slate-200 shrink-0";
+        chip.innerHTML = `<span class="px-1.5 py-0.2 rounded bg-amber-500 text-slate-950 font-black text-[11px]">${totalQty}x</span><span class="truncate max-w-[130px] font-semibold">${dishName}</span>`;
+        container.appendChild(chip);
+      });
+    }
+
+    function updateSummaryMetrics() {
+      document.getElementById("statQueued").textContent = tickets.filter(t => t.status === 'QUEUED').length;
+      document.getElementById("statCooking").textContent = tickets.filter(t => t.status === 'COOKING').length;
+      document.getElementById("statReady").textContent = tickets.filter(t => t.status === 'READY').length;
+      document.getElementById("statDelayed").textContent = tickets.filter(t => t.timeElapsedSec >= 1080 && t.status !== 'READY').length;
+
+      document.getElementById("badgeCountAll").textContent = tickets.length;
+      ["TANDOOR","CURRY","BIRYANI"].forEach(st => {
+        const el = document.getElementById(`badgeCount${st[0] + st.slice(1).toLowerCase()}`);
+        if(el) el.textContent = tickets.filter(t => t.stations.includes(st)).length;
+      });
+    }
+
+    function openRecallModal() {
+      const modal = document.getElementById("recallModal");
+      const list = document.getElementById("recallListContainer");
+      list.innerHTML = recalledTickets.length ? recalledTickets.map(rt => `
+        <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-ticket text-xl text-white">${rt.table}</span>
+              <span class="text-xs font-mono font-bold text-amber-400">${rt.id}</span>
+              <span class="text-xs text-slate-400">Cleared @ ${rt.bumpedAt}</span>
+            </div>
+            <p class="text-xs text-slate-300 mt-1">${rt.items.map(i => `${i.qty}x${i.name}`).join(', ')}</p>
+          </div>
+          <button onclick="closeTableFromKds('${rt.table}')" class="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-xs">
+            Close Table Out
+          </button>
+        </div>
+      `).join('') : '<p class="text-slate-400 text-xs text-center py-8">No completed tickets in memory.</p>';
+      modal.classList.remove("opacity-0", "pointer-events-none");
+    }
+
+    function closeTableFromKds(tableId){
+      broadcastKdsUpdate('TABLE_CLOSED', tableId, {});
+      showToast(`Table ${tableId} close signal sent.`);
+      closeRecallModal();
+    }
+
+    function closeRecallModal() {
+      document.getElementById("recallModal").classList.add("opacity-0", "pointer-events-none");
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById("kdsToast");
+      document.getElementById("toastMsg").textContent = msg;
+      toast.classList.remove("opacity-0", "pointer-events-none");
+      setTimeout(() => toast.classList.add("opacity-0", "pointer-events-none"), 3500);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      initTimers();
+      renderTickets();
+
+      document.querySelectorAll(".station-tab").forEach(tab => {
+        tab.addEventListener("click", (e) => {
+          document.querySelectorAll(".station-tab").forEach(t => {
+            t.classList.remove("active", "bg-amber-500", "text-black");
+            t.classList.add("text-slate-300");
+          });
+          const btn = e.currentTarget;
+          btn.classList.add("active", "bg-amber-500", "text-black");
+          btn.classList.remove("text-slate-300");
+          currentStationFilter = btn.getAttribute("data-station");
+          renderTickets();
+        });
+      });
+
+      document.getElementById("toggleAudioBtn").onclick = () => {
+        audioEnabled = !audioEnabled;
+        document.getElementById("audioIcon").textContent = audioEnabled ? "🔔" : "🔕";
+        document.getElementById("audioLabel").textContent = audioEnabled ? "Bell: ON" : "Bell: MUTE";
+      };
+
+      document.getElementById("btnRecallModal").onclick = openRecallModal;
+    });
+  </script>
+  <script>
+/* Kitchen Dashboard (built in) - advanced analytics */
+(function () {
+  window.DISH_IMAGES = Object.assign({}, window.DISH_IMAGES || {}); // e.g. "Butter Chicken": "images/bc.jpg"
+  const CUR = '₹', KEY = 'kds_sales_v2', TARGET = 1080;
+  const day = () => new Date().toLocaleDateString('en-CA');
+  const blank = () => ({ date: day(), log: [], ready: [], demo: false });
+  let S = (() => { try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.date === day()) return s; } catch (e) {} return blank(); })();
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  let tab = 'overview', sortBy = 'qty', stnF = 'ALL';
+
+  // ---- capture ----
+  function record(p, addon) {
+    if (S.demo) S = blank();
+    S.log.push({ t: Date.now(), tb: p.table, ad: addon ? 1 : 0, it: (p.items || []).map(i => ({ n: i.name, q: i.qty, p: i.price || 0, s: i.station || 'CURRY', m: i.modifier || '' })) });
+    save(); refresh();
+  }
+  const origOrder = window.handleCustomerOrder;
+  window.handleCustomerOrder = function (msg) {
+    try {
+      if (msg && msg.type === 'NEW_ORDER' && msg.payload && !processedOrderIds.has(msg.payload.id) && !tickets.some(t => t.id === msg.payload.id))
+        record(msg.payload, tickets.some(t => t.table === msg.payload.table && t.status !== 'COMPLETED'));
+    } catch (e) {}
+    return origOrder.apply(this, arguments);
+  };
+  ['bumpTicketStage', 'toggleItemStrike'].forEach(name => {
+    const o = window[name];
+    window[name] = function () {
+      const before = new Map(tickets.map(t => [t.id, t.status]));
+      const r = o.apply(this, arguments);
+      tickets.forEach(t => { const b = before.get(t.id); if (t.status === 'READY' && b && b !== 'READY') { S.ready.push({ t: Date.now(), sec: t.timeElapsedSec, st: t.stations.slice() }); save(); refresh(); } });
+      return r;
+    };
+  });
+
+  // ---- look-ups ----
+  const ART = [[/biryani|pulao|rice/i, '🍚'], [/paneer/i, '🧀'], [/naan|roti|kulcha|paratha/i, '🫓'], [/tikka|tandoori|kebab|grill|wing/i, '🍗'], [/mutton|lamb|rogan|keema/i, '🍖'], [/fish|prawn/i, '🍤'], [/lassi|juice|drink|soda/i, '🥤'], [/chai|tea|coffee/i, '☕'], [/gulab|jamun|kheer|halwa|dessert/i, '🍮'], [/soup/i, '🍲'], [/dal|curry|masala|korma|butter|gravy/i, '🍛']];
+  const emoji = n => (ART.find(a => a[0].test(n)) || [0, '🍽️'])[1];
+  const STN = { TANDOOR: { label: 'Tandoor & Grill', c: '#f97316', bg: 'linear-gradient(135deg,#7c2d12,#1c0a05)' }, CURRY: { label: 'Curry & Gravy', c: '#e5b358', bg: 'linear-gradient(135deg,#78350f,#1a1206)' }, BIRYANI: { label: 'Biryani & Rice', c: '#10b981', bg: 'linear-gradient(135deg,#14532d,#06140c)' } };
+  const stn = k => STN[k] || { label: k || 'Other', c: '#94a3b8', bg: 'linear-gradient(135deg,#334155,#0f172a)' };
+  const imgFor = n => { const k = Object.keys(window.DISH_IMAGES).find(x => x.toLowerCase() === n.toLowerCase()); return k ? window.DISH_IMAGES[k] : ''; };
+  const hl = h => (h % 12 || 12) + (h < 12 ? 'a' : 'p');
+  const mmss = s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+  const money = n => CUR + Math.round(n).toLocaleString('en-IN');
+  const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+  const med = a => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+  const CLS = { Star: ['#f59e0b', 'Protect and feature it'], Workhorse: ['#06b6d4', 'Popular but low price: try a small price rise or a combo'], Puzzle: ['#a78bfa', 'High price, few sales: promote or reposition it'], Dog: ['#ef4444', 'Low on both: rework the dish or drop it'] };
+
+  // ---- analytics engine ----
+  function compute() {
+    const D = { dm: {}, hr: {}, sh: {}, pairs: {}, mods: {}, tables: {}, sizes: {}, st: {}, orders: S.log.length, dishes: 0, rev: 0, addons: 0, last: 0 };
+    const now = Date.now();
+    S.log.forEach(o => {
+      const h = new Date(o.t).getHours(), H = D.hr[h] || (D.hr[h] = { q: 0, r: 0, o: 0 }); H.o++; if (o.ad) D.addons++;
+      let oq = 0; const names = [];
+      o.it.forEach(i => {
+        const d = D.dm[i.n] || (D.dm[i.n] = { name: i.n, qty: 0, rev: 0, station: i.s, price: i.p, last: 0 });
+        d.qty += i.q; d.rev += i.p * i.q; if (i.p) d.price = i.p; if (now - o.t < 3600e3) { d.last += i.q; D.last += i.q; }
+        H.q += i.q; H.r += i.p * i.q; D.dishes += i.q; D.rev += i.p * i.q; oq += i.q; names.push(i.n);
+        if (i.m) D.mods[i.m] = (D.mods[i.m] || 0) + i.q;
+        D.st[i.s] = (D.st[i.s] || 0) + i.q; (D.sh[i.s] || (D.sh[i.s] = {}))[h] = ((D.sh[i.s] || {})[h] || 0) + i.q;
+        D.tables[o.tb] = (D.tables[o.tb] || 0) + i.q;
+      });
+      const k = Math.min(oq, 6); D.sizes[k] = (D.sizes[k] || 0) + 1;
+      const u = [...new Set(names)].sort();
+      for (let a = 0; a < u.length; a++) for (let b = a + 1; b < u.length; b++) { const key = u[a] + '|' + u[b]; D.pairs[key] = (D.pairs[key] || 0) + 1; }
+    });
+    D.list = Object.values(D.dm);
+    const mq = med(D.list.map(d => d.qty)), mp = med(D.list.map(d => d.price));
+    D.mq = mq; D.mp = mp;
+    D.list.forEach(d => d.cls = d.qty >= mq ? (d.price >= mp ? 'Star' : 'Workhorse') : (d.price >= mp ? 'Puzzle' : 'Dog'));
+    const byRev = [...D.list].sort((a, b) => b.rev - a.rev); let acc = 0;
+    byRev.forEach(d => { acc += d.rev; d.cum = pct(acc, D.rev); });
+    D.byRev = byRev; D.n80 = byRev.findIndex(d => d.cum >= 80) + 1;
+    const pr = S.ready.map(r => r.sec); D.prep = pr; D.avgPrep = pr.length ? pr.reduce((a, b) => a + b, 0) / pr.length : 0;
+    D.onTarget = pct(pr.filter(s => s < TARGET).length, pr.length); D.late = pr.filter(s => s >= TARGET).length;
+    D.prepSt = {}; S.ready.forEach(r => r.st.forEach(s => (D.prepSt[s] || (D.prepSt[s] = [])).push(r.sec)));
+    D.buckets = [0, 0, 0, 0, 0]; pr.forEach(s => D.buckets[s < 300 ? 0 : s < 600 ? 1 : s < 900 ? 2 : s < TARGET ? 3 : 4]++);
+    D.live = {}; let open = 0, oldest = 0;
+    tickets.filter(t => t.status !== 'READY').forEach(t => { open++; oldest = Math.max(oldest, t.timeElapsedSec); t.items.forEach(i => { if (!i.done) D.live[i.station] = (D.live[i.station] || 0) + i.qty; }); });
+    D.open = open; D.oldest = oldest;
+    const hs = Object.keys(D.hr).map(Number); const lo = hs.length ? Math.min(...hs, 11) : 11; let hi = hs.length ? Math.max(...hs, 20) : 20;
+    D.hrs = []; for (let h = lo; h <= Math.max(hi, lo + 7); h++) D.hrs.push(h);
+    D.peak = D.hrs.reduce((a, h) => ((D.hr[h] || {}).q || 0) > ((D.hr[a] || {}).q || 0) ? h : a, D.hrs[0]);
+    const nowH = new Date().getHours() + new Date().getMinutes() / 60; D.proj = Math.round(D.dishes + D.last * Math.max(0, 23 - nowH));
+    return D;
+  }
+
+  // ---- UI shell ----
+  const css = document.createElement('style');
+  css.textContent = `#dashOv{transform:translateY(12px);opacity:0;pointer-events:none;transition:all .22s ease}#dashOv.open{transform:none;opacity:1;pointer-events:auto}
+  .qty{font-family:'Bebas Neue',Impact,sans-serif;letter-spacing:.03em}.dbar{transition:width .5s ease,height .5s ease}
+  .dtab{padding:.4rem .8rem;border-radius:.6rem;font-size:12px;font-weight:600;color:#cbd5e1}.dtab.on{background:#f59e0b;color:#0c0e12}
+  .dchip{padding:.25rem .6rem;border-radius:.5rem;font-size:11px;font-weight:600;background:#1c212d;color:#cbd5e1;border:1px solid rgba(255,255,255,.12)}.dchip.on{background:#f59e0b;color:#0c0e12}
+  @media (prefers-reduced-motion:reduce){#dashOv,.dbar{transition:none}}`;
+  document.head.appendChild(css);
+  const btn = document.createElement('button');
+  btn.className = 'touch-btn px-3.5 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold flex items-center gap-1.5 hover:bg-amber-400 transition';
+  btn.innerHTML = '<span>📊</span><span>Kitchen Dashboard</span>';
+  document.getElementById('btnRecallModal').parentElement.appendChild(btn);
+  const ov = document.createElement('div');
+  ov.id = 'dashOv'; ov.className = 'fixed inset-0 z-40 bg-[#0a0c10] flex flex-col';
+  ov.innerHTML = `<div class="bg-[#12151c] border-b border-kds-border px-4 py-2.5 flex items-center justify-between gap-3 shrink-0">
+    <div><h2 class="font-bold text-base text-white">Kitchen Dashboard</h2><p class="text-[11px] text-slate-400 font-mono" id="dashDate"></p></div>
+    <div class="flex items-center gap-2 flex-wrap justify-end">
+      <button id="dashCsv" class="touch-btn px-3 py-2 rounded-xl bg-[#1c212d] border border-kds-border text-slate-300 text-xs font-semibold">Export CSV</button>
+      <button id="dashDemo" class="touch-btn px-3 py-2 rounded-xl bg-[#1c212d] border border-kds-border text-slate-300 text-xs font-semibold">Load sample data</button>
+      <button id="dashClear" class="touch-btn px-3 py-2 rounded-xl bg-[#1c212d] border border-kds-border text-slate-300 text-xs font-semibold">Reset today</button>
+      <button id="dashClose" class="touch-btn px-3.5 py-2 rounded-xl bg-slate-800 text-white text-xs font-bold">✕ Close</button></div></div>
+    <div class="flex-1 min-h-0 flex flex-col lg:flex-row">
+      <section id="dashLeft" class="lg:w-[45%] lg:border-r border-kds-border overflow-y-auto p-4"></section>
+      <section id="dashRight" class="lg:w-[55%] overflow-y-auto p-4 border-t lg:border-t-0 border-kds-border"></section></div>`;
+  document.body.appendChild(ov);
+  const $ = s => ov.querySelector(s);
+  btn.onclick = () => { ov.classList.add('open'); refresh(); };
+  const close = () => ov.classList.remove('open');
+  $('#dashClose').onclick = close; document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  $('#dashClear').onclick = () => { S = blank(); save(); refresh(); };
+  window.__dashTab = t => { tab = t; refresh(); }; window.__dashSort = s => { sortBy = s; refresh(); }; window.__dashStn = s => { stnF = s; refresh(); };
+  $('#dashCsv').onclick = () => {
+    const rows = [['time', 'table', 'dish', 'qty', 'price', 'station', 'modifier', 'add_on']];
+    S.log.forEach(o => o.it.forEach(i => rows.push([new Date(o.t).toLocaleTimeString(), o.tb, i.n, i.q, i.p, i.s, i.m, o.ad])));
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')], { type: 'text/csv' }));
+    a.download = `spice-bistro-sales-${S.date}.csv`; a.click();
+  };
+  $('#dashDemo').onclick = () => {
+    const menu = [['Chicken Biryani', 'BIRYANI', 320, 9], ['Butter Chicken', 'CURRY', 340, 8], ['Garlic Naan', 'TANDOOR', 70, 12], ['Paneer Tikka', 'TANDOOR', 260, 6], ['Dal Makhani', 'CURRY', 220, 5], ['Tandoori Chicken', 'TANDOOR', 380, 4], ['Mutton Rogan Josh', 'CURRY', 420, 3], ['Veg Biryani', 'BIRYANI', 250, 3]];
+    const mods = ['', '', '', 'Spicy', 'Extra spicy', 'Mild', 'No onion'];
+    const wt = { 11: 2, 12: 9, 13: 12, 14: 7, 15: 3, 16: 2, 17: 3, 18: 6, 19: 12, 20: 15, 21: 10, 22: 4 };
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const pick = () => { let r = rnd() * menu.reduce((a, m) => a + m[3], 0); for (const m of menu) { if ((r -= m[3]) < 0) return m; } return menu[0]; };
+    S = blank(); S.demo = true; const d0 = new Date(); d0.setHours(0, 0, 0, 0);
+    const mk = t => { const it = [], n = 1 + Math.floor(rnd() * 4), seen = new Set(); for (let k = 0; k < n; k++) { const m = pick(); if (seen.has(m[0])) continue; seen.add(m[0]); it.push({ n: m[0], q: 1 + (rnd() > .7 ? 1 : 0), p: m[2], s: m[1], m: mods[Math.floor(rnd() * mods.length)] }); } S.log.push({ t, tb: 'T' + (1 + Math.floor(rnd() * 12)), ad: rnd() > .85 ? 1 : 0, it }); };
+    Object.entries(wt).forEach(([h, w]) => { for (let k = 0; k < w; k++) mk(d0.getTime() + h * 3600e3 + rnd() * 3500e3); });
+    for (let k = 0; k < 6; k++) mk(Date.now() - rnd() * 3300e3);
+    const sts = ['TANDOOR', 'CURRY', 'BIRYANI'];
+    for (let k = 0; k < 28; k++) S.ready.push({ t: Date.now(), sec: Math.round(380 + rnd() * 900), st: [sts[Math.floor(rnd() * 3)], ...(rnd() > .6 ? [sts[Math.floor(rnd() * 3)]] : [])] });
+    save(); refresh();
+  };
+
+  // ---- render helpers ----
+  const kpi = (v, l, sub) => `<div class="rounded-2xl bg-kds-card border border-kds-border p-3"><div class="text-xl font-bold text-white font-mono">${v}</div><div class="text-[11px] text-slate-400 mt-0.5">${l}</div>${sub ? `<div class="text-[10px] text-slate-500 mt-0.5">${sub}</div>` : ''}</div>`;
+  const box = (t, inner, note) => `<div class="rounded-2xl bg-kds-card border border-kds-border p-4 mt-3"><h4 class="text-xs font-bold text-slate-200">${t}</h4>${note ? `<p class="text-[11px] text-slate-500 mb-3">${note}</p>` : '<div class="mb-3"></div>'}${inner}</div>`;
+  const hbar = (label, v, max, color, right) => `<div class="flex items-center gap-2 mb-1.5 text-xs"><span class="w-32 truncate text-slate-200">${esc(label)}</span><div class="flex-1 h-4 rounded-md bg-slate-800 overflow-hidden"><div class="dbar h-full rounded-md" style="width:${max ? v / max * 100 : 0}%;background:${color}"></div></div><span class="w-16 text-right font-mono text-slate-300">${right}</span></div>`;
+
+  function refresh() {
+    if (!ov.classList.contains('open')) return;
+    $('#dashDate').textContent = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' }) + (S.demo ? '  ·  showing sample data' : '');
+    const D = compute(); renderLeft(D); renderRight(D);
+  }
+
+  function renderLeft(D) {
+    const el = $('#dashLeft');
+    if (!D.list.length) { el.innerHTML = `<div class="min-h-[280px] h-full flex flex-col items-center justify-center text-center border border-dashed border-slate-700 rounded-2xl p-6"><span class="text-4xl mb-2">🍽️</span><h3 class="font-bold text-white">No dishes sold yet today</h3><p class="text-xs text-slate-400 mt-1 max-w-xs">Each dish gets its own card here when a guest orders it. Use “Load sample data” to preview.</p></div>`; return; }
+    const key = { qty: 'qty', rev: 'rev', last: 'last' }[sortBy];
+    const list = D.list.filter(d => stnF === 'ALL' || d.station === stnF).sort((a, b) => b[key] - a[key] || b.qty - a.qty);
+    const max = Math.max(1, ...list.map(d => d[key]));
+    const chip = (v, l, fn) => `<button class="dchip ${(fn === '__dashSort' ? sortBy : stnF) === v ? 'on' : ''}" onclick="${fn}('${v}')">${l}</button>`;
+    el.innerHTML = `<div class="flex items-center justify-between mb-2"><h3 class="font-bold text-white text-sm">Sold today, by dish</h3><span class="text-[11px] text-slate-400 font-mono">${list.length} dishes</span></div>
+    <div class="flex flex-wrap gap-1.5 mb-1">${chip('qty', 'Most sold', '__dashSort')}${chip('rev', 'Top revenue', '__dashSort')}${chip('last', 'Trending (last hour)', '__dashSort')}</div>
+    <div class="flex flex-wrap gap-1.5 mb-3">${chip('ALL', 'All', '__dashStn')}${Object.keys(STN).map(k => chip(k, stn(k).label, '__dashStn')).join('')}</div>
+    <div class="grid grid-cols-2 xl:grid-cols-3 gap-3">${list.map((d, i) => { const s = stn(d.station), img = imgFor(d.name), c = CLS[d.cls];
+      return `<article class="rounded-2xl overflow-hidden bg-kds-card border border-kds-border flex flex-col"><div class="relative h-28 flex items-center justify-center" style="background:${s.bg}"><span class="text-5xl">${emoji(d.name)}</span>
+      ${img ? `<img src="${esc(img)}" alt="${esc(d.name)}" class="absolute inset-0 w-full h-full object-cover" onerror="this.remove()">` : ''}
+      <span class="absolute top-2 left-2 px-1.5 py-0.5 rounded-md bg-black/60 text-[10px] font-mono font-bold text-white">#${i + 1}</span>
+      <span class="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-black/60 text-[10px] font-semibold" style="color:${c[0]}">${d.cls}</span>
+      <span class="absolute bottom-2 left-2 px-1.5 py-0.5 rounded-md bg-black/60 text-[10px] font-semibold" style="color:${s.c}">${esc(s.label)}</span></div>
+      <div class="p-3"><div class="text-sm font-bold text-slate-100 truncate" title="${esc(d.name)}">${esc(d.name)}</div>
+      <div class="flex items-end justify-between mt-1"><div><span class="qty text-4xl text-white leading-none">${d.qty}</span><span class="text-[11px] text-slate-400 ml-1">sold</span></div><span class="text-[11px] font-mono text-slate-400">${money(d.rev)}</span></div>
+      <div class="mt-2 h-1.5 rounded-full bg-slate-800 overflow-hidden"><div class="dbar h-full rounded-full" style="width:${Math.max(4, d[key] / max * 100)}%;background:${s.c}"></div></div>
+      <div class="mt-1.5 text-[10px] font-mono ${d.last ? 'text-emerald-400' : 'text-slate-500'}">${d.last ? '▲ ' + d.last + ' in last hour' : 'none in last hour'}</div></div></article>`; }).join('')}</div>`;
+  }
+
+  function hourChart(D) {
+    const n = D.hrs.length, W = 440, H = 150, bw = W / n, mq = Math.max(1, ...D.hrs.map(h => (D.hr[h] || {}).q || 0)), mr = Math.max(1, ...D.hrs.map(h => (D.hr[h] || {}).r || 0));
+    const bars = D.hrs.map((h, i) => { const v = (D.hr[h] || {}).q || 0, bh = v / mq * 105; return `<rect x="${i * bw + 4}" y="${120 - bh}" width="${bw - 8}" height="${bh}" rx="3" fill="${h === D.peak ? '#f59e0b' : '#3b4358'}"/><text x="${i * bw + bw / 2}" y="${116 - bh}" text-anchor="middle" font-size="9" fill="#94a3b8">${v || ''}</text><text x="${i * bw + bw / 2}" y="138" text-anchor="middle" font-size="9" fill="#64748b">${hl(h)}</text>`; }).join('');
+    const pts = D.hrs.map((h, i) => `${i * bw + bw / 2},${120 - ((D.hr[h] || {}).r || 0) / mr * 105}`).join(' ');
+    return `<svg viewBox="0 0 ${W} ${H}" class="w-full"><polyline points="${pts}" fill="none" stroke="#06b6d4" stroke-width="2"/>${bars}</svg><div class="text-[10px] text-slate-500 mt-1"><span class="text-amber-400">■</span> dishes (peak highlighted) &nbsp; <span class="text-cyan-400">━</span> revenue</div>`;
+  }
+  function scatter(D) {
+    const W = 400, H = 240, P = 30, xq = Math.max(...D.list.map(d => d.qty), 1), yp = Math.max(...D.list.map(d => d.price), 1);
+    const X = v => P + v / xq * (W - P - 24), Y = v => H - P - v / yp * (H - P - 14);
+    return `<svg viewBox="0 0 ${W} ${H}" class="w-full"><line x1="${X(D.mq)}" y1="8" x2="${X(D.mq)}" y2="${H - P}" stroke="#334155" stroke-dasharray="4"/><line x1="${P}" y1="${Y(D.mp)}" x2="${W - 8}" y2="${Y(D.mp)}" stroke="#334155" stroke-dasharray="4"/>
+    <text x="${W - 10}" y="16" text-anchor="end" font-size="9" fill="#f59e0b">STARS</text><text x="${W - 10}" y="${H - P - 6}" text-anchor="end" font-size="9" fill="#06b6d4">WORKHORSES</text><text x="${P + 4}" y="16" font-size="9" fill="#a78bfa">PUZZLES</text><text x="${P + 4}" y="${H - P - 6}" font-size="9" fill="#ef4444">DOGS</text>
+    <text x="${W / 2}" y="${H - 6}" text-anchor="middle" font-size="9" fill="#64748b">Portions sold →</text><text x="8" y="${H / 2}" font-size="9" fill="#64748b" transform="rotate(-90 8 ${H / 2})">Price ↑</text>
+    ${D.list.map(d => `<circle cx="${X(d.qty)}" cy="${Y(d.price)}" r="6" fill="${CLS[d.cls][0]}"/><text x="${X(d.qty) + 9}" y="${Y(d.price) + 3}" font-size="9" fill="#cbd5e1">${esc(d.name.slice(0, 13))}</text>`).join('')}</svg>`;
+  }
+  function donut(D) {
+    const ent = Object.entries(D.st).sort((a, b) => b[1] - a[1]); let acc = 0;
+    const g = ent.map(([k, v]) => { const a = acc / D.dishes * 360; acc += v; return `${stn(k).c} ${a}deg ${acc / D.dishes * 360}deg`; }).join(',');
+    return `<div class="flex items-center gap-5"><div class="w-28 h-28 rounded-full shrink-0 flex items-center justify-center" style="background:conic-gradient(${g})"><div class="w-16 h-16 rounded-full bg-kds-card flex flex-col items-center justify-center"><span class="font-mono font-bold text-white text-sm">${D.dishes}</span><span class="text-[9px] text-slate-400">dishes</span></div></div><div class="space-y-1.5 text-xs">${ent.map(([k, v]) => `<div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-sm" style="background:${stn(k).c}"></span><span class="text-slate-200">${esc(stn(k).label)}</span><span class="font-mono text-slate-400">${pct(v, D.dishes)}%</span></div>`).join('')}</div></div>`;
+  }
+
+  function insights(D) {
+    const L = [], best = [...D.list].sort((a, b) => b.qty - a.qty)[0], rl = D.byRev[0];
+    L.push(`<b>${esc(best.name)}</b> leads with ${best.qty} portions (${pct(best.qty, D.dishes)}% of all dishes).`);
+    if (rl.name !== best.name) L.push(`<b>${esc(rl.name)}</b> earns the most (${money(rl.rev)}) although ${esc(best.name)} sells more.`);
+    L.push(`Rush hour is <b>${hl(D.peak)}–${hl(D.peak + 1)}</b> with ${(D.hr[D.peak] || {}).q || 0} dishes. Have those items prepped 30 minutes earlier.`);
+    L.push(`<b>${D.n80} of ${D.list.length}</b> dishes bring 80% of revenue. Keep those always in stock.`);
+    if (D.last) L.push(`Last hour: ${D.last} dishes. At this pace you finish near <b>${D.proj}</b> dishes by 11pm (estimate).`);
+    const dogs = D.list.filter(d => d.cls === 'Dog'); if (dogs.length) L.push(`Weak sellers: ${dogs.map(d => '<b>' + esc(d.name) + '</b>').join(', ')}. Rework or drop them.`);
+    const pr = Object.entries(D.pairs).sort((a, b) => b[1] - a[1])[0]; if (pr && pr[1] > 1) { const [a, b] = pr[0].split('|'); L.push(`<b>${esc(a)}</b> and <b>${esc(b)}</b> were ordered together ${pr[1]} times. Offer them as a combo.`); }
+    if (D.prep.length) L.push(D.onTarget >= 85 ? `${D.onTarget}% of tickets reached the pass within 18 minutes. Kitchen speed is healthy.` : `Only ${D.onTarget}% of tickets reached the pass within 18 minutes. Check staffing at the slowest station.`);
+    return L;
+  }
+
+  function renderRight(D) {
+    const el = $('#dashRight');
+    const tabs = [['overview', 'Overview'], ['menu', 'Menu'], ['kitchen', 'Kitchen speed'], ['patterns', 'Patterns']];
+    const bar = `<div class="flex gap-1.5 p-1 rounded-xl bg-[#181c25] border border-kds-border mb-3 overflow-x-auto">${tabs.map(t => `<button class="dtab ${tab === t[0] ? 'on' : ''}" onclick="__dashTab('${t[0]}')">${t[1]}</button>`).join('')}</div>`;
+    if (!D.dishes) { el.innerHTML = bar + box('Analytics', '<p class="text-xs text-slate-400">Charts and insights appear after the first orders come in. Use “Load sample data” to preview.</p>'); return; }
+    let h = '';
+    if (tab === 'overview') {
+      h = `<div class="grid grid-cols-2 xl:grid-cols-4 gap-3">${kpi(D.dishes, 'Dishes sold')}${kpi(D.orders, 'Orders', pct(D.addons, D.orders) + '% add-ons')}${kpi(money(D.rev), 'Revenue')}${kpi(money(D.rev / D.orders), 'Avg order value')}${kpi((D.dishes / D.orders).toFixed(1), 'Dishes per order')}${kpi(D.last, 'Last hour')}${kpi(D.proj, 'Projected by 11pm', 'estimate')}${kpi(D.prep.length ? mmss(D.avgPrep) : '–', 'Avg time to pass')}</div>`
+        + box('Sales by hour', hourChart(D)) + box('What the numbers say', `<ul class="space-y-2 text-xs text-slate-300 leading-relaxed">${insights(D).map(i => `<li class="flex gap-2"><span class="text-amber-400">•</span><span>${i}</span></li>`).join('')}</ul>`);
+    } else if (tab === 'menu') {
+      const cnt = k => D.list.filter(d => d.cls === k);
+      h = box('Menu performance map', scatter(D), 'Each dot is a dish. Lines mark the median portions sold and median price.')
+        + box('What to do with each dish', Object.keys(CLS).map(k => `<div class="mb-2.5"><div class="text-xs font-bold" style="color:${CLS[k][0]}">${k}s <span class="text-slate-500 font-normal">· ${CLS[k][1]}</span></div><div class="text-xs text-slate-300 mt-0.5">${cnt(k).map(d => esc(d.name)).join(', ') || '<span class="text-slate-500">none</span>'}</div></div>`).join(''))
+        + box('Revenue ranking', D.byRev.map(d => hbar(d.name, d.rev, D.byRev[0].rev, stn(d.station).c, pct(d.rev, D.rev) + '% · ' + d.cum + '%')).join(''), 'Share of revenue · running total. The dishes up to 80% are your core menu.')
+        + box('Work split by station', donut(D));
+    } else if (tab === 'kitchen') {
+      const sts = Object.keys(STN), lmax = Math.max(1, ...sts.map(s => D.live[s] || 0)), bm = Math.max(1, ...D.buckets), bl = ['0–5 min', '5–10', '10–15', '15–18', '18+ late'];
+      h = `<div class="grid grid-cols-2 xl:grid-cols-4 gap-3">${kpi(D.open, 'Open tickets now')}${kpi(D.oldest ? mmss(D.oldest) : '–', 'Oldest ticket')}${kpi(D.prep.length ? D.onTarget + '%' : '–', 'Within 18 min')}${kpi(D.late, 'Late tickets today')}</div>`
+        + box('Kitchen load right now', sts.map(s => hbar(stn(s).label, D.live[s] || 0, lmax, stn(s).c, (D.live[s] || 0) + ' dishes')).join(''), 'Dishes still to cook, by station.')
+        + box('Time to pass by station', D.prep.length ? sts.filter(s => D.prepSt[s]).map(s => { const a = D.prepSt[s], av = a.reduce((x, y) => x + y, 0) / a.length; return hbar(stn(s).label, av, TARGET * 1.2, av >= TARGET ? '#ef4444' : stn(s).c, mmss(av)); }).join('') : '<p class="text-xs text-slate-400">Appears after the first ticket reaches the pass.</p>', 'Average minutes per ticket. Red means over the 18-minute limit.')
+        + box('How long tickets take', D.buckets.map((v, i) => hbar(bl[i], v, bm, i === 4 ? '#ef4444' : '#06b6d4', v + '')).join(''));
+    } else {
+      const sts = Object.keys(STN), hm = Math.max(1, ...sts.flatMap(s => D.hrs.map(x => (D.sh[s] || {})[x] || 0)));
+      const heat = `<div class="overflow-x-auto"><table class="text-[10px] font-mono w-full"><tr><td></td>${D.hrs.map(x => `<td class="text-center text-slate-500 px-0.5">${hl(x)}</td>`).join('')}</tr>${sts.map(s => `<tr><td class="pr-2 text-slate-300 whitespace-nowrap">${esc(stn(s).label.split(' ')[0])}</td>${D.hrs.map(x => { const v = (D.sh[s] || {})[x] || 0; return `<td class="p-0.5"><div class="h-7 rounded flex items-center justify-center text-white" style="background:rgba(245,158,11,${v ? .12 + v / hm * .8 : .04})">${v || ''}</div></td>`; }).join('')}</tr>`).join('')}</table></div>`;
+      const pairs = Object.entries(D.pairs).sort((a, b) => b[1] - a[1]).slice(0, 5), pm = pairs.length ? pairs[0][1] : 1;
+      const mods = Object.entries(D.mods).sort((a, b) => b[1] - a[1]).slice(0, 5), mm = mods.length ? mods[0][1] : 1;
+      const tbs = Object.entries(D.tables).sort((a, b) => b[1] - a[1]).slice(0, 5), tm = tbs.length ? tbs[0][1] : 1;
+      const sz = [1, 2, 3, 4, 5, 6].map(k => [k === 6 ? '6+ dishes' : k + (k === 1 ? ' dish' : ' dishes'), D.sizes[k] || 0]), sm = Math.max(1, ...sz.map(x => x[1]));
+      h = box('Station demand by hour', heat, 'Darker means busier. Use it to plan when each station needs extra hands.')
+        + box('Dishes ordered together', pairs.length ? pairs.map(([k, v]) => hbar(k.replace('|', ' + '), v, pm, '#a78bfa', v + ' orders')).join('') : '<p class="text-xs text-slate-400">Needs orders with two or more dishes.</p>', 'Good candidates for combo deals.')
+        + box('Order size', sz.map(x => hbar(x[0], x[1], sm, '#06b6d4', x[1] + ' orders')).join(''))
+        + box('Requests and spice levels', mods.length ? mods.map(([k, v]) => hbar(k, v, mm, '#f59e0b', v + '')).join('') : '<p class="text-xs text-slate-400">No special requests recorded yet.</p>')
+        + box('Busiest tables', tbs.map(([k, v]) => hbar(k, v, tm, '#10b981', v + ' dishes')).join(''));
+    }
+    el.innerHTML = bar + h;
+  }
+
+  setInterval(refresh, 5000);
+})();
+
+</script>
+</body>
+</html>
